@@ -1,0 +1,45 @@
+[project]
+name = "gdrive-assistant-bot"
+version = "0.1.0"
+description = "Google Drive assistant bot"
+requires-python = ">=3.13"
+readme = "README.md"
+
+dependencies = [
+  "qdrant-client>=1.16.2",
+  "fastembed>=0.7.4",
+  "python-telegram-bot>=22.6",
+  "pydantic>=2.12.5",
+  "pydantic-settings>=2.12.0",
+  "openai>=2.16.0",
+  "google-api-python-client>=2.188.0",
+  "google-auth>=2.48.0",
+  "google-auth-httplib2>=0.3.0",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.5.1",
+    "ruff>=0.14.14",
+]
+
+[tool.uv]
+link-mode = "copy"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ARG", "PL", "RUF"]
+extend-ignore = ["RUF001"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["gdrive_assistant_bot"]
+split-on-trailing-comma = false
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = true

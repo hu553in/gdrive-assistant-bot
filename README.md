@@ -1,0 +1,112 @@
+# Google Drive assistant bot
+
+[![CI](https://github.com/hu553in/gdrive-assistant-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/hu553in/gdrive-assistant-bot/actions/workflows/ci.yml)
+
+- [License](./LICENSE)
+- [How to contribute](./CONTRIBUTING.md)
+- [Code of conduct](./CODE_OF_CONDUCT.md)
+
+Semantic search and Q&A Telegram bot for Google Drive — powered by Qdrant and an optional OpenAI-compatible LLM.
+
+---
+
+## Why this project
+
+If your Google Drive is full of Docs and Sheets and you keep asking things like:
+
+- "What did I write last January?"
+- "Is there any document mentioning X?"
+- "Does my work Google Drive actually contain anything about this?"
+
+This bot turns Google Drive into a searchable knowledge base — and answers directly in Telegram.
+
+---
+
+## What it does
+
+- Recursively indexes Google Docs and Google Sheets from:
+  - specific folders, or
+  - everything accessible to the account
+- Splits content into chunks, generates embeddings, and stores them in Qdrant
+- Answers questions via `/ask` using semantic search
+- Optionally uses an OpenAI-compatible LLM to generate final answers
+- Accepts manual notes from Telegram via `/ingest`
+
+LLM usage is optional. Without it, the bot returns the most relevant text fragments.
+
+---
+
+## Supported file types
+
+- Google Docs
+- Google Sheets
+
+---
+
+## Architecture
+
+- `ingest` — background service that syncs Google Drive into Qdrant
+- `bot` — Telegram interface (`/ask`, `/ingest`)
+- `qdrant` — vector database
+- `llm` (optional) — OpenAI-compatible chat model
+
+Everything runs via Docker Compose.
+
+---
+
+## Quick start
+
+1. Copy environment config: `cp .env.example .env`
+2. Configure Google Drive access:
+   - Create a Google service account
+   - Download its JSON key
+   - Place it at `secrets/google_sa.json`
+   - Share target Google Drive folders with the service account email
+3. Set required environment variables:
+   - `TELEGRAM_BOT_TOKEN`
+   - Either `GOOGLE_DRIVE_FOLDER_IDS` (JSON array) or `ALL_ACCESSIBLE=true`
+4. Start services: `make start`
+5. Stop everything: `make stop`
+
+---
+
+## Telegram commands
+
+- `/start` — show help
+- `/ask <question>` — search the knowledge base and answer
+- `/ingest <text>` — manually add a note to the knowledge base
+
+---
+
+## Configuration
+
+All settings are defined via `.env`.
+
+| Name                          | Required | Default                                                       | Description                          |
+| ----------------------------- | -------- | ------------------------------------------------------------- | ------------------------------------ |
+| `TELEGRAM_BOT_TOKEN`          | yes      | –                                                             | Telegram bot token                   |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | yes      | `/run/secrets/google_sa.json`                                 | Service account credentials          |
+| `GOOGLE_DRIVE_FOLDER_IDS`     | yes*     | –                                                             | Google Drive folder IDs (JSON array) |
+| `ALL_ACCESSIBLE`              | yes*     | `false`                                                       | Index all accessible files           |
+| `QDRANT_URL`                  | no       | `http://qdrant:6333`                                          | Qdrant endpoint                      |
+| `QDRANT_COLLECTION`           | no       | `docs`                                                        | Collection name                      |
+| `EMBED_MODEL`                 | no       | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | fastembed model                      |
+| `HF_TOKEN`                    | no       | –                                                             | HuggingFace token (recommended)      |
+| `TOP_K`                       | no       | `6`                                                           | Retrieved chunks per query           |
+| `MAX_CONTEXT_CHARS`           | no       | `6000`                                                        | Context size limit                   |
+| `LLM_BASE_URL`                | no       | –                                                             | OpenAI-compatible API base           |
+| `LLM_API_KEY`                 | no       | –                                                             | LLM API key                          |
+| `LLM_MODEL`                   | no       | –                                                             | LLM model name                       |
+| `INGEST_MODE`                 | no       | `loop`                                                        | `once` or `loop`                     |
+| `INGEST_POLL_SECONDS`         | no       | `600`                                                         | Poll interval                        |
+| `BOT_HEALTH_PORT`             | no       | `8080`                                                        | Bot health endpoint                  |
+| `INGEST_HEALTH_PORT`          | no       | `8081`                                                        | Ingest health endpoint               |
+
+Set either `GOOGLE_DRIVE_FOLDER_IDS` or `ALL_ACCESSIBLE=true`.
+
+---
+
+## Roadmap
+
+- More file types
+- Other clouds / storage backends

@@ -1,0 +1,60 @@
+x-common: &common
+  restart: unless-stopped
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  qdrant:
+    <<: *common
+    image: qdrant/qdrant:latest
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/6333 && echo -e 'GET /readyz HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q 'HTTP/1.1 200' <&3"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  bot:
+    <<: *common
+    image: ghcr.io/hu553in/gdrive-assistant-bot:latest
+    env_file:
+      - .env
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    command: ["uv", "run", "python", "-m", "gdrive_assistant_bot.bot"]
+
+  ingest:
+    <<: *common
+    image: ghcr.io/hu553in/gdrive-assistant-bot:latest
+    env_file:
+      - .env
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    command: ["uv", "run", "python", "-m", "gdrive_assistant_bot.ingest"]
+    secrets:
+      - google_sa
+
+volumes:
+  qdrant_data:
+
+secrets:
+  google_sa:
+    file: ./secrets/google_sa.json
