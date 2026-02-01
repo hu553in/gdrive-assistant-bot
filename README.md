@@ -12,7 +12,7 @@ Semantic search and Q&A Telegram bot for Google Drive — powered by Qdrant and 
 
 ## Why this project
 
-If your Google Drive is full of Docs and Sheets and you keep asking things like:
+If your Google Drive is full of Docs and Sheets and you keep asking questions like:
 
 - "What did I write last January?"
 - "Is there any document mentioning X?"
@@ -24,7 +24,7 @@ This bot turns Google Drive into a searchable knowledge base — and answers dir
 
 ## What it does
 
-- Recursively indexes Google Docs and Google Sheets from:
+- Recursively indexes files from Google Drive, including Google Docs and Sheets, from:
   - specific folders, or
   - everything accessible to the account
 - Splits content into chunks, generates embeddings, and stores them in Qdrant
@@ -38,19 +38,45 @@ LLM usage is optional. Without it, the bot returns the most relevant text fragme
 
 ## Supported file types
 
+Currently supported:
+
 - Google Docs
 - Google Sheets
 
 ---
 
+## Components
+
+- **ingest** — background service that syncs cloud files to Qdrant
+- **bot** — Telegram interface for asking questions and adding notes
+- **qdrant** — vector database for embeddings and search
+- **llm** (optional) — OpenAI-compatible model for answer generation
+
+---
+
 ## Architecture
 
-- `ingest` — background service that syncs Google Drive into Qdrant
-- `bot` — Telegram interface (`/ask`, `/ingest`)
-- `qdrant` — vector database
-- `llm` (optional) — OpenAI-compatible chat model
+The system consists of three main components: ingestion, retrieval, and answering.
+Files are indexed in the background and queried via a Telegram bot.
 
-Everything runs via Docker Compose.
+### System flow
+
+```mermaid
+flowchart LR
+    U[User]
+    GD[Cloud storage<br/>documents]
+    ING[Ingest service]
+    QD[(Qdrant<br/>vector DB)]
+    BOT[Telegram bot]
+    LLM[LLM<br/>// optional]
+    U -->|questions & notes| BOT
+    GD -->|files & updates| ING
+    ING -->|embeddings| QD
+    BOT -->|semantic search| QD
+    QD -->|relevant chunks| BOT
+    BOT -->|context| LLM
+    LLM -->|final answer| BOT
+```
 
 ---
 
@@ -108,5 +134,5 @@ Set either `GOOGLE_DRIVE_FOLDER_IDS` or `ALL_ACCESSIBLE=true`.
 
 ## Roadmap
 
-- More file types
-- Other clouds / storage backends
+- Support more file types (at least TXT, PDF, DOC, DOCX, XLS, XLSX)
+- Support additional cloud and storage backends
