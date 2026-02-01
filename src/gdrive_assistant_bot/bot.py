@@ -5,7 +5,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 from .health import start_health_server
-from .logging_json import setup_logging
+from .logging import setup_logging
 from .rag import RAGStore
 from .settings import settings
 
@@ -28,8 +28,8 @@ async def cmd_start(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "🤖 Я — бот-ассистент для Google Drive.\n\n"
         "Команды:\n\n"
-        "– /ask <вопрос> — найти ответ\n"
-        "– /ingest <текст> — добавить информацию вручную\n"
+        "– /ask <вопрос> — найти ответ в базе знаний\n"
+        "– /ingest <текст> — добавить информацию в базу знаний\n"
     )
 
 
@@ -61,7 +61,7 @@ async def cmd_ingest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     n = store.upsert_document(
         doc_id=doc_id, source=f"telegram:{msg.chat_id}", text=text, payload=payload
     )
-    await msg.reply_text(f"Информация добавлена ({n} частей)")
+    await msg.reply_text(f"Информация добавлена в базу знаний ({n} частей)")
 
 
 async def cmd_ask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -108,13 +108,8 @@ async def cmd_ask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.reply_text("Ошибка языковой модели")
 
 
-async def on_plain_text(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
-    msg = update.message
-    if not msg or not msg.text:
-        return
-
-    text = _truncate_text(msg.text)
-    await msg.reply_text(f"Если хочешь добавить эту информацию — отправь:\n\n/ingest {text}")
+async def on_plain_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await cmd_start(update, context)
 
 
 def main() -> None:

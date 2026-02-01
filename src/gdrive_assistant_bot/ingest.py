@@ -12,7 +12,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from .health import start_health_server
-from .logging_json import setup_logging
+from .logging import setup_logging
 from .rag import RAGStore
 from .settings import settings
 
