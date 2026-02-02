@@ -30,6 +30,7 @@ repos:
     rev: v0.3.12
     hooks:
       - id: pysentry
+        stages: [pre-commit]
         args: ["--sources", "pypa,pypi,osv", "--fail-on", "low", "."]
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.10.0

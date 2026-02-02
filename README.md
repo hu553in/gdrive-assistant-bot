@@ -96,6 +96,27 @@ flowchart LR
 
 ---
 
+## Access control (optional)
+
+By default, the bot is publicly accessible. You can restrict access using the following options:
+
+- Set `TELEGRAM_ALLOWED_USER_IDS` — a comma-separated list of Telegram user IDs
+  allowed to interact with the bot in private chats
+- Set `TELEGRAM_ALLOWED_GROUP_IDS` — a comma-separated list of Telegram group or supergroup IDs
+  where the bot is allowed to respond
+
+Behavior:
+
+- If both lists are empty (default), the bot responds to everyone
+- If user IDs are set, only those users can use the bot in private chats
+- If group IDs are set, the bot responds only in those groups (any member can use it there)
+- If access is not allowed, the bot silently ignores the message
+
+To find your Telegram user or group ID, you can use bots like [@userinfobot](https://userinfobot.t.me)
+or [@getidsbot](https://getidsbot.t.me).
+
+---
+
 ## Telegram commands
 
 - `/start` — show help
@@ -108,39 +129,41 @@ flowchart LR
 
 All settings are defined via `.env`.
 
-| Name                                | Required | Default                                                       | Description                         |
-| ----------------------------------- | -------- | ------------------------------------------------------------- | ----------------------------------- |
-| `TELEGRAM_BOT_TOKEN`                | yes      | –                                                             | Telegram bot token                  |
-| `GOOGLE_SERVICE_ACCOUNT_JSON`       | yes      | `/run/secrets/google_sa`                                      | Service account credentials         |
-| `GOOGLE_DRIVE_FOLDER_IDS`           | yes*     | `[]`                                                          | Google Drive folder IDs (CSV/array) |
-| `ALL_ACCESSIBLE`                    | yes*     | `false`                                                       | Index all accessible files          |
-| `QDRANT_URL`                        | no       | `http://qdrant:6333`                                          | Qdrant endpoint                     |
-| `QDRANT_COLLECTION`                 | no       | `docs`                                                        | Collection name                     |
-| `EMBED_MODEL`                       | no       | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | fastembed model                     |
-| `HF_TOKEN`                          | no       | –                                                             | HuggingFace token (recommended)     |
-| `TOP_K`                             | no       | `6`                                                           | Retrieved chunks per query          |
-| `MAX_CONTEXT_CHARS`                 | no       | `6000`                                                        | Context size limit                  |
-| `LLM_BASE_URL`                      | no       | –                                                             | OpenAI-compatible API base          |
-| `LLM_API_KEY`                       | no       | –                                                             | LLM API key                         |
-| `LLM_MODEL`                         | no       | –                                                             | LLM model name                      |
-| `LLM_SYSTEM_PROMPT`                 | no       | Built-in prompt                                               | LLM system prompt                   |
-| `INGEST_MODE`                       | no       | `loop`                                                        | `once` or `loop`                    |
-| `INGEST_POLL_SECONDS`               | no       | `600`                                                         | Poll interval                       |
-| `INGEST_WORKERS`                    | no       | `6`                                                           | Parallel workers                    |
-| `GOOGLE_MAX_ROWS_PER_SHEET`         | no       | `2000`                                                        | Max rows per sheet                  |
-| `GOOGLE_BACKOFF_RETRIES`            | no       | `8`                                                           | Retry count for Google API          |
-| `GOOGLE_BACKOFF_BASE_DELAY_SECONDS` | no       | `1.0`                                                         | Backoff base delay                  |
-| `GOOGLE_BACKOFF_MAX_DELAY_SECONDS`  | no       | `30.0`                                                        | Backoff max delay                   |
-| `GOOGLE_API_RPS`                    | no       | `8.0`                                                         | Google API rate limit (tokens/sec)  |
-| `GOOGLE_API_BURST`                  | no       | `16.0`                                                        | Google API burst size (tokens)      |
-| `INGEST_PROGRESS_FILES`             | no       | `25`                                                          | Log every N files                   |
-| `INGEST_PROGRESS_SECONDS`           | no       | `30`                                                          | Log progress at least every N sec   |
-| `INGEST_SHUTDOWN_GRACE_SECONDS`     | no       | `20`                                                          | Graceful shutdown delay             |
-| `LOG_LEVEL`                         | no       | `INFO`                                                        | Logging level                       |
-| `LOG_PLAIN_TEXT`                    | no       | `false`                                                       | Use plain text logs instead of JSON |
-| `HEALTH_HOST`                       | no       | `localhost`                                                   | Health server bind host             |
-| `BOT_HEALTH_PORT`                   | no       | `8080`                                                        | Bot health endpoint                 |
-| `INGEST_HEALTH_PORT`                | no       | `8081`                                                        | Ingest health endpoint              |
+| Name                                | Required | Default                                                       | Description                                       |
+| ----------------------------------- | -------- | ------------------------------------------------------------- | ------------------------------------------------- |
+| `TELEGRAM_BOT_TOKEN`                | yes      | –                                                             | Telegram bot token                                |
+| `TELEGRAM_ALLOWED_USER_IDS`         | no       | `[]`                                                          | Allowed user IDs for private messages (CSV/array) |
+| `TELEGRAM_ALLOWED_GROUP_IDS`        | no       | `[]`                                                          | Allowed group IDs for group chats (CSV/array)     |
+| `GOOGLE_SERVICE_ACCOUNT_JSON`       | yes      | `/run/secrets/google_sa`                                      | Service account credentials                       |
+| `GOOGLE_DRIVE_FOLDER_IDS`           | yes*     | `[]`                                                          | Google Drive folder IDs (CSV/array)               |
+| `ALL_ACCESSIBLE`                    | yes*     | `false`                                                       | Index all accessible files                        |
+| `QDRANT_URL`                        | no       | `http://qdrant:6333`                                          | Qdrant endpoint                                   |
+| `QDRANT_COLLECTION`                 | no       | `docs`                                                        | Collection name                                   |
+| `EMBED_MODEL`                       | no       | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | fastembed model                                   |
+| `HF_TOKEN`                          | no       | –                                                             | HuggingFace token (recommended)                   |
+| `TOP_K`                             | no       | `6`                                                           | Retrieved chunks per query                        |
+| `MAX_CONTEXT_CHARS`                 | no       | `6000`                                                        | Context size limit                                |
+| `LLM_BASE_URL`                      | no       | –                                                             | OpenAI-compatible API base                        |
+| `LLM_API_KEY`                       | no       | –                                                             | LLM API key                                       |
+| `LLM_MODEL`                         | no       | –                                                             | LLM model name                                    |
+| `LLM_SYSTEM_PROMPT`                 | no       | Built-in prompt                                               | LLM system prompt                                 |
+| `INGEST_MODE`                       | no       | `loop`                                                        | `once` or `loop`                                  |
+| `INGEST_POLL_SECONDS`               | no       | `600`                                                         | Poll interval                                     |
+| `INGEST_WORKERS`                    | no       | `6`                                                           | Parallel workers                                  |
+| `GOOGLE_MAX_ROWS_PER_SHEET`         | no       | `2000`                                                        | Max rows per sheet                                |
+| `GOOGLE_BACKOFF_RETRIES`            | no       | `8`                                                           | Retry count for Google API                        |
+| `GOOGLE_BACKOFF_BASE_DELAY_SECONDS` | no       | `1.0`                                                         | Backoff base delay                                |
+| `GOOGLE_BACKOFF_MAX_DELAY_SECONDS`  | no       | `30.0`                                                        | Backoff max delay                                 |
+| `GOOGLE_API_RPS`                    | no       | `8.0`                                                         | Google API rate limit (tokens/sec)                |
+| `GOOGLE_API_BURST`                  | no       | `16.0`                                                        | Google API burst size (tokens)                    |
+| `INGEST_PROGRESS_FILES`             | no       | `25`                                                          | Log every N files                                 |
+| `INGEST_PROGRESS_SECONDS`           | no       | `30`                                                          | Log progress at least every N sec                 |
+| `INGEST_SHUTDOWN_GRACE_SECONDS`     | no       | `20`                                                          | Graceful shutdown delay                           |
+| `LOG_LEVEL`                         | no       | `INFO`                                                        | Logging level                                     |
+| `LOG_PLAIN_TEXT`                    | no       | `false`                                                       | Use plain text logs instead of JSON               |
+| `HEALTH_HOST`                       | no       | `localhost`                                                   | Health server bind host                           |
+| `BOT_HEALTH_PORT`                   | no       | `8080`                                                        | Bot health endpoint                               |
+| `INGEST_HEALTH_PORT`                | no       | `8081`                                                        | Ingest health endpoint                            |
 
 Set either `GOOGLE_DRIVE_FOLDER_IDS` or `ALL_ACCESSIBLE=true`.
 

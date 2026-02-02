@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from typing import Any
+
 import structlog
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -17,11 +20,42 @@ _MAX_POLL_SECONDS = 86_400
 _LOG_LEVELS = {"CRITICAL", "FATAL", "ERROR", "WARN", "WARNING", "INFO", "DEBUG", "NOTSET"}
 
 
+def _as_list_from_env(v: Any) -> list[Any]:
+    """
+    Accepts:
+      - None
+      - list/tuple/set
+      - CSV string: "a,b,c"
+      - JSON array string: '["a","b"]' or '[1,2,3]'
+    Returns a list of raw items (not yet casted/cleaned).
+    """
+    if v is None:
+        return []
+    if isinstance(v, (list, tuple, set)):
+        return list(v)
+    s = str(v).strip()
+    if not s:
+        return []
+    # JSON array
+    if s.startswith("[") and s.endswith("]"):
+        try:
+            parsed = json.loads(s)
+            if isinstance(parsed, list):
+                return parsed
+        except Exception:
+            # fall back to CSV below
+            pass
+    # CSV fallback
+    return [x.strip() for x in s.split(",") if x.strip()]
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # Telegram
     TELEGRAM_BOT_TOKEN: str
+    TELEGRAM_ALLOWED_USER_IDS: list[int] = []
+    TELEGRAM_ALLOWED_GROUP_IDS: list[int] = []
 
     # Qdrant
     QDRANT_URL: str = "http://qdrant:6333"
@@ -171,14 +205,35 @@ class Settings(BaseSettings):
     @field_validator("GOOGLE_DRIVE_FOLDER_IDS", mode="before")
     @classmethod
     def _parse_folder_ids(cls, v):
-        if v is None:
-            return []
-        if isinstance(v, list):
-            return [str(x).strip() for x in v if str(x).strip()]
-        s = str(v).strip()
-        if not s:
-            return []
-        return [x.strip() for x in s.split(",") if x.strip()]
+        raw = _as_list_from_env(v)
+        out: list[str] = []
+        for x in raw:
+            if x is None:
+                continue
+            s = str(x).strip()
+            if s:
+                out.append(s)
+        return out
+
+    @field_validator("TELEGRAM_ALLOWED_USER_IDS", "TELEGRAM_ALLOWED_GROUP_IDS", mode="before")
+    @classmethod
+    def _parse_telegram_ids(cls, v):
+        raw = _as_list_from_env(v)
+        out: list[int] = []
+        for x in raw:
+            if x is None:
+                continue
+            # already int
+            if isinstance(x, int):
+                out.append(x)
+                continue
+            s = str(x).strip()
+            if not s:
+                continue
+            # allow negatives (groups)
+            if s.lstrip("-").isdigit():
+                out.append(int(s))
+        return out
 
     @model_validator(mode="after")
     def _validate_drive_scope(self) -> Settings:
@@ -190,6 +245,9 @@ class Settings(BaseSettings):
 
     def llm_enabled(self) -> bool:
         return bool(self.LLM_BASE_URL and self.LLM_API_KEY and self.LLM_MODEL)
+
+    def private_mode(self) -> bool:
+        return bool(self.TELEGRAM_ALLOWED_USER_IDS or self.TELEGRAM_ALLOWED_GROUP_IDS)
 
     def safe_dump(self) -> dict:
         # intentionally excludes secrets (telegram token, llm api key)
@@ -222,6 +280,9 @@ class Settings(BaseSettings):
             "health_host": self.HEALTH_HOST,
             "bot_health_port": self.BOT_HEALTH_PORT,
             "ingest_health_port": self.INGEST_HEALTH_PORT,
+            "telegram_allowed_user_ids": self.TELEGRAM_ALLOWED_USER_IDS,
+            "telegram_allowed_group_ids": self.TELEGRAM_ALLOWED_GROUP_IDS,
+            "private_mode": self.private_mode(),
         }
 
 

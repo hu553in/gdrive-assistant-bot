@@ -16,6 +16,29 @@ _CLOSE_LOOP = False
 log = structlog.get_logger("gdrive-assistant-bot.bot")
 
 
+def _is_allowed(update: Update) -> bool:
+    if not settings.private_mode():
+        return True
+
+    msg = update.effective_message
+    if not msg:
+        return False
+
+    chat = msg.chat
+    if not chat:
+        return False
+
+    if chat.type in ("group", "supergroup") and chat.id in settings.TELEGRAM_ALLOWED_GROUP_IDS:
+        return True
+
+    return bool(
+        chat.type == "private"
+        and msg.from_user
+        and msg.from_user.id
+        and msg.from_user.id in settings.TELEGRAM_ALLOWED_USER_IDS
+    )
+
+
 def _make_llm_client() -> OpenAI | None:
     if not settings.llm_enabled():
         return None
@@ -41,6 +64,9 @@ async def _reply_service_unavailable(msg: Message, *, flow: str) -> None:
 
 
 async def cmd_start(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_allowed(update):
+        return
+
     await update.message.reply_text(
         "🤖 Я — бот-ассистент для Google Drive.\n\n"
         "Команды:\n\n"
@@ -50,6 +76,9 @@ async def cmd_start(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_ingest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_allowed(update):
+        return
+
     msg = update.message
     if not msg or not msg.text:
         return
@@ -95,6 +124,9 @@ async def cmd_ingest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
 
 async def cmd_ask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:  # noqa: PLR0911
+    if not _is_allowed(update):
+        return
+
     msg = update.message
     if not msg or not msg.text:
         return
