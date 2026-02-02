@@ -34,7 +34,7 @@ class RAGStore:
             self.client.get_collection(col)
             return
         except Exception:
-            pass
+            pass  # Collection doesn't exist or error occurred; proceed to create it
 
         self.client.create_collection(
             collection_name=col,

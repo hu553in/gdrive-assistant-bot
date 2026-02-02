@@ -2,3 +2,4 @@
 .env
 secrets/
 .ruff_cache/
+__pycache__/

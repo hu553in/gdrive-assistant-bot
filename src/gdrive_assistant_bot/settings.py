@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import structlog
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -9,9 +10,11 @@ _MAX_CONTEXT_CHARS = 100_000
 _MAX_WORKERS = 64
 _MAX_RPS = 1000
 _MAX_BURST = 10_000
-_MAX_PROGRESS_EVERY = 10_000
+_MAX_PROGRESS_FILES = 10_000
 _MAX_PROGRESS_SECONDS = 3600
 _MAX_SHUTDOWN_GRACE_SECONDS = 600
+_MAX_POLL_SECONDS = 86_400
+_LOG_LEVELS = {"CRITICAL", "FATAL", "ERROR", "WARN", "WARNING", "INFO", "DEBUG", "NOTSET"}
 
 
 class Settings(BaseSettings):
@@ -36,8 +39,12 @@ class Settings(BaseSettings):
     LLM_API_KEY: str | None = None
     LLM_MODEL: str | None = None
     LLM_SYSTEM_PROMPT: str = (
-        "Ты помощник по внутренней базе знаний. "
-        "Отвечай по контексту. Если данных нет — скажи, что не нашел."
+        "You are an assistant for a private internal knowledge base. "
+        "You must answer questions strictly and exclusively based on the provided context. "
+        "If the context does not explicitly contain the required information, "
+        "state that the information is not available. "
+        "Never speculate, infer, or guess beyond the given text. "
+        "Prefer accuracy over completeness."
     )
 
     # Google Drive ingest
@@ -45,30 +52,36 @@ class Settings(BaseSettings):
     GOOGLE_DRIVE_FOLDER_IDS: list[str] = []
     ALL_ACCESSIBLE: bool = False
 
-    INGEST_MODE: str = "loop"  # once|loop
+    # Ingest
+    INGEST_MODE: str = "loop"  # "once" or "loop"
     INGEST_POLL_SECONDS: int = 600
     INGEST_WORKERS: int = 6
 
+    # Ingest backoff
     GOOGLE_MAX_ROWS_PER_SHEET: int = 2000
     GOOGLE_BACKOFF_RETRIES: int = 8
-    GOOGLE_BACKOFF_BASE_DELAY: float = 1.0
-    GOOGLE_BACKOFF_MAX_DELAY: float = 30.0
+    GOOGLE_BACKOFF_BASE_DELAY_SECONDS: float = 1.0
+    GOOGLE_BACKOFF_MAX_DELAY_SECONDS: float = 30.0
 
-    # Google API rate limit (token bucket)
-    GOOGLE_API_RPS: float = 8.0
-    GOOGLE_API_BURST: float = 16.0
+    # Google API rate limit
+    GOOGLE_API_RPS: float = 8.0  # tokens/second
+    GOOGLE_API_BURST: float = 16.0  # tokens
 
-    # progress logging
-    INGEST_PROGRESS_EVERY: int = 25
+    # Ingest progress logging
+    INGEST_PROGRESS_FILES: int = 25
     INGEST_PROGRESS_SECONDS: int = 30
 
-    # graceful shutdown
+    # Ingest graceful shutdown delay
     INGEST_SHUTDOWN_GRACE_SECONDS: int = 20
 
-    # health
+    # Health server
     HEALTH_HOST: str = "localhost"
     BOT_HEALTH_PORT: int = 8080
     INGEST_HEALTH_PORT: int = 8081
+
+    # Logging
+    LOG_LEVEL: str = "INFO"
+    LOG_PLAIN_TEXT: bool = False
 
     @field_validator("INGEST_MODE")
     @classmethod
@@ -115,11 +128,11 @@ class Settings(BaseSettings):
             raise ValueError(f"GOOGLE_API_BURST must be in range [1..{_MAX_BURST}]")
         return v
 
-    @field_validator("INGEST_PROGRESS_EVERY")
+    @field_validator("INGEST_PROGRESS_FILES")
     @classmethod
-    def _validate_progress_every(cls, v: int) -> int:
-        if v < 1 or v > _MAX_PROGRESS_EVERY:
-            raise ValueError(f"INGEST_PROGRESS_EVERY must be in range [1..{_MAX_PROGRESS_EVERY}]")
+    def _validate_progress_files(cls, v: int) -> int:
+        if v < 1 or v > _MAX_PROGRESS_FILES:
+            raise ValueError(f"INGEST_PROGRESS_FILES must be in range [1..{_MAX_PROGRESS_FILES}]")
         return v
 
     @field_validator("INGEST_PROGRESS_SECONDS")
@@ -139,6 +152,21 @@ class Settings(BaseSettings):
                 f"INGEST_SHUTDOWN_GRACE_SECONDS must be in range [0..{_MAX_SHUTDOWN_GRACE_SECONDS}]"
             )
         return v
+
+    @field_validator("INGEST_POLL_SECONDS")
+    @classmethod
+    def _validate_poll_seconds(cls, v: int) -> int:
+        if v < 1 or v > _MAX_POLL_SECONDS:
+            raise ValueError(f"INGEST_POLL_SECONDS must be in range [1..{_MAX_POLL_SECONDS}]")
+        return v
+
+    @field_validator("LOG_LEVEL")
+    @classmethod
+    def _validate_log_level(cls, v: str) -> str:
+        level = v.strip().upper()
+        if level not in _LOG_LEVELS:
+            raise ValueError(f"LOG_LEVEL must be one of: {', '.join(sorted(_LOG_LEVELS))}")
+        return level
 
     @field_validator("GOOGLE_DRIVE_FOLDER_IDS", mode="before")
     @classmethod
@@ -166,29 +194,44 @@ class Settings(BaseSettings):
     def safe_dump(self) -> dict:
         # intentionally excludes secrets (telegram token, llm api key)
         return {
-            "QDRANT_URL": self.QDRANT_URL,
-            "QDRANT_COLLECTION": self.QDRANT_COLLECTION,
-            "EMBED_MODEL": self.EMBED_MODEL,
-            "TOP_K": self.TOP_K,
-            "MAX_CONTEXT_CHARS": self.MAX_CONTEXT_CHARS,
-            "LLM_BASE_URL": self.LLM_BASE_URL,
-            "LLM_MODEL": self.LLM_MODEL,
-            "LLM_ENABLED": self.llm_enabled(),
-            "GOOGLE_SERVICE_ACCOUNT_JSON": self.GOOGLE_SERVICE_ACCOUNT_JSON,
-            "GOOGLE_DRIVE_FOLDER_IDS": self.GOOGLE_DRIVE_FOLDER_IDS,
-            "ALL_ACCESSIBLE": self.ALL_ACCESSIBLE,
-            "INGEST_MODE": self.INGEST_MODE,
-            "INGEST_POLL_SECONDS": self.INGEST_POLL_SECONDS,
-            "INGEST_WORKERS": self.INGEST_WORKERS,
-            "GOOGLE_API_RPS": self.GOOGLE_API_RPS,
-            "GOOGLE_API_BURST": self.GOOGLE_API_BURST,
-            "INGEST_PROGRESS_EVERY": self.INGEST_PROGRESS_EVERY,
-            "INGEST_PROGRESS_SECONDS": self.INGEST_PROGRESS_SECONDS,
-            "INGEST_SHUTDOWN_GRACE_SECONDS": self.INGEST_SHUTDOWN_GRACE_SECONDS,
-            "HEALTH_HOST": self.HEALTH_HOST,
-            "BOT_HEALTH_PORT": self.BOT_HEALTH_PORT,
-            "INGEST_HEALTH_PORT": self.INGEST_HEALTH_PORT,
+            "qdrant_url": self.QDRANT_URL,
+            "qdrant_collection": self.QDRANT_COLLECTION,
+            "embed_model": self.EMBED_MODEL,
+            "top_k": self.TOP_K,
+            "max_context_chars": self.MAX_CONTEXT_CHARS,
+            "llm_base_url": self.LLM_BASE_URL,
+            "llm_model": self.LLM_MODEL,
+            "llm_enabled": self.llm_enabled(),
+            "google_service_account_json": self.GOOGLE_SERVICE_ACCOUNT_JSON,
+            "google_drive_folder_ids": self.GOOGLE_DRIVE_FOLDER_IDS,
+            "all_accessible": self.ALL_ACCESSIBLE,
+            "ingest_mode": self.INGEST_MODE,
+            "ingest_poll_seconds": self.INGEST_POLL_SECONDS,
+            "ingest_workers": self.INGEST_WORKERS,
+            "google_max_rows_per_sheet": self.GOOGLE_MAX_ROWS_PER_SHEET,
+            "google_backoff_retries": self.GOOGLE_BACKOFF_RETRIES,
+            "google_backoff_base_delay_seconds": self.GOOGLE_BACKOFF_BASE_DELAY_SECONDS,
+            "google_backoff_max_delay_seconds": self.GOOGLE_BACKOFF_MAX_DELAY_SECONDS,
+            "google_api_rps": self.GOOGLE_API_RPS,
+            "google_api_burst": self.GOOGLE_API_BURST,
+            "ingest_progress_files": self.INGEST_PROGRESS_FILES,
+            "ingest_progress_seconds": self.INGEST_PROGRESS_SECONDS,
+            "ingest_shutdown_grace_seconds": self.INGEST_SHUTDOWN_GRACE_SECONDS,
+            "log_level": self.LOG_LEVEL,
+            "log_plain_text": self.LOG_PLAIN_TEXT,
+            "health_host": self.HEALTH_HOST,
+            "bot_health_port": self.BOT_HEALTH_PORT,
+            "ingest_health_port": self.INGEST_HEALTH_PORT,
         }
 
 
-settings = Settings()
+try:
+    settings = Settings()
+except Exception as exc:
+    structlog.get_logger("gdrive-assistant-bot.settings").error(
+        "settings_load_failed",
+        component="settings",
+        flow="startup",
+        meta={"error_type": type(exc).__name__, "error": str(exc)},
+    )
+    raise

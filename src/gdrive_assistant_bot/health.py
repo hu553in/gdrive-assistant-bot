@@ -1,8 +1,9 @@
-import logging
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-log = logging.getLogger("gdrive-assistant-bot.health")
+import structlog
+
+log = structlog.get_logger("gdrive-assistant-bot.health")
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -17,7 +18,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_response(404)
         self.end_headers()
 
-    def log_message(self, _: str, *_args) -> None:
+    def log_message(self, format: str, *args) -> None:  # noqa: ARG002
         # silence stdlib access logs; we do structured logs ourselves
         return
 
@@ -30,15 +31,26 @@ def start_health_server(host: str, port: int, *, component: str) -> None:
         return
 
     def _run() -> None:
-        srv = ThreadingHTTPServer((host, port), _Handler)
-        log.info(
-            "health_server_started",
-            extra={
-                "component": component,
-                "event": "health_started",
-                "count": {"host": host, "port": port},
-            },
-        )
-        srv.serve_forever()
+        try:
+            srv = ThreadingHTTPServer((host, port), _Handler)
+            log.info(
+                "health_server_started",
+                component=component,
+                flow="health",
+                meta={
+                    "host": host,
+                    "port": port,
+                    "thread": threading.current_thread().name,
+                    "paths": ["/health", "/healthz"],
+                },
+            )
+            srv.serve_forever()
+        except Exception:
+            log.exception(
+                "health_server_failed",
+                component=component,
+                flow="health",
+                meta={"host": host, "port": port, "thread": threading.current_thread().name},
+            )
 
     threading.Thread(target=_run, name=f"{component}-health", daemon=True).start()

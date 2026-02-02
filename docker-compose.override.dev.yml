@@ -1,6 +1,8 @@
 services:
   bot:
+    image: bot-dev
     build: .
 
   ingest:
+    image: ingest-dev
     build: .

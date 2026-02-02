@@ -1,45 +1,57 @@
-import json
 import logging
-import os
 import sys
-from datetime import UTC, datetime
-from typing import Any
 
-_EXTRA_KEYS = ("component", "event", "file_id", "file_name", "elapsed_ms", "count")
+import structlog
 
-
-class JsonFormatter(logging.Formatter):
-    def format(self, record: logging.LogRecord) -> str:
-        payload: dict[str, Any] = {
-            "ts": datetime.now(UTC).isoformat(timespec="seconds"),
-            "level": record.levelname,
-            "logger": record.name,
-            "msg": record.getMessage(),
-        }
-
-        for key in _EXTRA_KEYS:
-            if hasattr(record, key):
-                payload[key] = getattr(record, key)
-
-        if record.exc_info:
-            payload["exc"] = self.formatException(record.exc_info)
-
-        return json.dumps(payload, ensure_ascii=False)
+from .settings import settings
 
 
 def setup_logging() -> None:
     """
-    JSON logs to stdout (one line = one JSON object).
-    Ideal for Dozzle/Loki.
+    Logs to stdout.
+    Default format is JSON (one line = one JSON object) for log aggregation tooling.
+    Set LOG_PLAIN_TEXT=1 for plain text logs in development.
     """
-    level = os.getenv("LOG_LEVEL", "INFO").upper()
+    timestamper = structlog.processors.TimeStamper(fmt="iso", utc=True, key="timestamp")
+    timestamperUnix = structlog.processors.TimeStamper(fmt=None, utc=True, key="timestamp_unix")
+
+    shared_processors = [
+        structlog.contextvars.merge_contextvars,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.add_logger_name,
+        timestamper,
+        timestamperUnix,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.StackInfoRenderer(),
+    ]
+
+    foreign_pre_chain = [*shared_processors]
+    processors = [structlog.stdlib.filter_by_level, *shared_processors]
+
+    if settings.LOG_PLAIN_TEXT:
+        renderer = structlog.dev.ConsoleRenderer(timestamp_key="timestamp")
+    else:
+        renderer = structlog.processors.JSONRenderer(ensure_ascii=False)
+        foreign_pre_chain.append(structlog.processors.format_exc_info)
+        processors.append(structlog.processors.format_exc_info)
+
+    processors.append(structlog.stdlib.ProcessorFormatter.wrap_for_formatter)
+
+    structlog.configure(
+        processors=processors,
+        wrapper_class=structlog.stdlib.BoundLogger,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        cache_logger_on_first_use=True,
+    )
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(
+        structlog.stdlib.ProcessorFormatter(processor=renderer, foreign_pre_chain=foreign_pre_chain)
+    )
 
     root = logging.getLogger()
     root.handlers.clear()
-    root.setLevel(level)
-
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(JsonFormatter())
+    root.setLevel(settings.LOG_LEVEL)
     root.addHandler(handler)
 
     # reduce noisy libs

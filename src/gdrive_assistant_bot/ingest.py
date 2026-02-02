@@ -1,4 +1,4 @@
-import logging
+import os
 import random
 import signal
 import threading
@@ -7,6 +7,7 @@ from collections.abc import Callable, Iterable
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from typing import Any, TypeVar
 
+import structlog
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -16,7 +17,7 @@ from .logging import setup_logging
 from .rag import RAGStore
 from .settings import settings
 
-log = logging.getLogger("gdrive-assistant-bot.ingest")
+log = structlog.get_logger("gdrive-assistant-bot.ingest")
 
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
@@ -71,6 +72,43 @@ class RateLimiter:
 _thread_local = threading.local()
 
 
+def _file_log_meta(file_id: str | None, file_name: str | None, **extra: Any) -> dict[str, Any]:
+    return {"file_id": file_id, "file_name": file_name, **extra}
+
+
+def _ingest_stats_meta(  # noqa: PLR0913
+    *,
+    total: int,
+    completed: int,
+    ok: int,
+    fail: int,
+    skipped_unchanged: int,
+    skipped_empty: int,
+    workers: int,
+    elapsed_ms: int,
+    in_flight: int | None = None,
+    stopped: bool | None = None,
+    mode: str | None = None,
+) -> dict[str, Any]:
+    meta: dict[str, Any] = {
+        "completed": completed,
+        "total": total,
+        "ok": ok,
+        "fail": fail,
+        "skipped_unchanged": skipped_unchanged,
+        "skipped_empty": skipped_empty,
+        "workers": workers,
+        "elapsed_ms": elapsed_ms,
+    }
+    if in_flight is not None:
+        meta["in_flight"] = in_flight
+    if stopped is not None:
+        meta["stopped"] = stopped
+    if mode is not None:
+        meta["mode"] = mode
+    return meta
+
+
 def _get_thread_clients():
     """
     googleapiclient clients are not guaranteed thread-safe -> keep per-thread instances.
@@ -94,8 +132,8 @@ def _get_thread_clients():
 
 def _execute_with_backoff[T](call: Callable[[], T], limiter: RateLimiter) -> T:
     retries = settings.GOOGLE_BACKOFF_RETRIES
-    base_delay = settings.GOOGLE_BACKOFF_BASE_DELAY
-    max_delay = settings.GOOGLE_BACKOFF_MAX_DELAY
+    base_delay = settings.GOOGLE_BACKOFF_BASE_DELAY_SECONDS
+    max_delay = settings.GOOGLE_BACKOFF_MAX_DELAY_SECONDS
 
     attempt = 0
     while True:
@@ -108,9 +146,12 @@ def _execute_with_backoff[T](call: Callable[[], T], limiter: RateLimiter) -> T:
                 status = getattr(e.resp, "status", None)
 
             retryable = status in (429, 500, 502, 503, 504)
-            attempt += 1
 
-            if not retryable or attempt > retries:
+            if not retryable:
+                raise
+
+            attempt += 1
+            if attempt > retries:
                 raise
 
             delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
@@ -118,10 +159,15 @@ def _execute_with_backoff[T](call: Callable[[], T], limiter: RateLimiter) -> T:
 
             log.warning(
                 "google_api_retry",
-                extra={
-                    "component": "ingest",
-                    "event": "retry",
-                    "count": {"status": status, "attempt": attempt, "delay": round(delay, 2)},
+                component="ingest",
+                flow="google_api",
+                meta={
+                    "status": status,
+                    "attempt": attempt,
+                    "delay_seconds": round(delay, 2),
+                    "max_retries": retries,
+                    "backoff_base_seconds": base_delay,
+                    "backoff_max_seconds": max_delay,
                 },
             )
             time.sleep(delay)
@@ -226,6 +272,8 @@ def _extract_sheet_text(sheets, spreadsheet_id: str, limiter: RateLimiter) -> st
 
     lines: list[str] = []
     for s in sheet_infos:
+        if not s or not isinstance(s, dict):
+            continue
         title = (s.get("properties") or {}).get("title") or "Sheet"
         rng = f"'{title}'!A1:ZZ{settings.GOOGLE_MAX_ROWS_PER_SHEET}"
         resp = _execute_with_backoff(
@@ -292,49 +340,76 @@ def _ingest_one_file(
 
     log.info(
         "indexed",
-        extra={
-            "component": "ingest",
-            "event": "indexed",
-            "file_id": fid,
-            "file_name": name,
-            "count": {"chunks": n},
-        },
+        component="ingest",
+        flow="ingest_file",
+        meta=_file_log_meta(fid, name, chunks=n, file_type=ftype, modified_time=mtime),
     )
     return "ok"
 
 
 def ingest_once(store: RAGStore, limiter: RateLimiter, stop_event: threading.Event) -> None:  # noqa: PLR0912, PLR0915
-    drive, _, _ = _get_thread_clients()
-
-    if settings.ALL_ACCESSIBLE:
-        files = _list_all_accessible_files(drive, limiter)
-        log.warning(
-            "all_accessible_enabled",
-            extra={"component": "ingest", "event": "scope", "count": {"files": len(files)}},
+    try:
+        drive, _, _ = _get_thread_clients()
+    except Exception:
+        log.exception(
+            "google_client_init_failed",
+            component="ingest",
+            flow="google_api",
+            meta={"service_account_path": settings.GOOGLE_SERVICE_ACCOUNT_JSON},
         )
-    else:
-        files = list(_walk_recursive(drive, settings.GOOGLE_DRIVE_FOLDER_IDS, limiter, stop_event))
-        log.info(
-            "folder_recursive_scope",
-            extra={
-                "component": "ingest",
-                "event": "scope",
-                "count": {"roots": settings.GOOGLE_DRIVE_FOLDER_IDS, "files": len(files)},
+        raise
+
+    try:
+        if settings.ALL_ACCESSIBLE:
+            files = _list_all_accessible_files(drive, limiter)
+            log.warning(
+                "all_accessible_enabled",
+                component="ingest",
+                flow="ingest_scope",
+                meta={"files": len(files), "all_accessible": True},
+            )
+        else:
+            files = list(
+                _walk_recursive(drive, settings.GOOGLE_DRIVE_FOLDER_IDS, limiter, stop_event)
+            )
+            log.info(
+                "folder_recursive_scope",
+                component="ingest",
+                flow="ingest_scope",
+                meta={
+                    "roots": settings.GOOGLE_DRIVE_FOLDER_IDS,
+                    "files": len(files),
+                    "all_accessible": False,
+                },
+            )
+    except Exception:
+        log.exception(
+            "ingest_scope_failed",
+            component="ingest",
+            flow="ingest_scope",
+            meta={
+                "all_accessible": settings.ALL_ACCESSIBLE,
+                "roots": settings.GOOGLE_DRIVE_FOLDER_IDS,
             },
         )
+        raise
 
     total = len(files)
     if total == 0:
         log.info(
             "nothing_to_ingest",
-            extra={"component": "ingest", "event": "done", "count": {"total": 0}},
+            component="ingest",
+            flow="ingest",
+            meta={"total": 0, "mode": settings.INGEST_MODE},
         )
         return
 
     workers = min(settings.INGEST_WORKERS, total)
     log.info(
         "parallelism",
-        extra={"component": "ingest", "event": "workers", "count": {"workers": workers}},
+        component="ingest",
+        flow="ingest",
+        meta={"workers": workers, "total": total, "configured_workers": settings.INGEST_WORKERS},
     )
 
     ok = fail = skipped_unchanged = skipped_empty = 0
@@ -364,7 +439,7 @@ def ingest_once(store: RAGStore, limiter: RateLimiter, stop_event: threading.Eve
         now = time.time()
         if (
             not force
-            and (completed % settings.INGEST_PROGRESS_EVERY) != 0
+            and (completed % settings.INGEST_PROGRESS_FILES) != 0
             and (now - last_progress_ts) < settings.INGEST_PROGRESS_SECONDS
         ):
             return
@@ -373,20 +448,19 @@ def ingest_once(store: RAGStore, limiter: RateLimiter, stop_event: threading.Eve
         elapsed_ms = int((now - t0) * 1000)
         log.info(
             "progress",
-            extra={
-                "component": "ingest",
-                "event": "progress",
-                "elapsed_ms": elapsed_ms,
-                "count": {
-                    "completed": completed,
-                    "total": total,
-                    "ok": ok,
-                    "fail": fail,
-                    "skipped_unchanged": skipped_unchanged,
-                    "skipped_empty": skipped_empty,
-                    "in_flight": len(in_flight),
-                },
-            },
+            component="ingest",
+            flow="ingest",
+            meta=_ingest_stats_meta(
+                total=total,
+                completed=completed,
+                ok=ok,
+                fail=fail,
+                skipped_unchanged=skipped_unchanged,
+                skipped_empty=skipped_empty,
+                workers=workers,
+                elapsed_ms=elapsed_ms,
+                in_flight=len(in_flight),
+            ),
         )
 
     try:
@@ -406,9 +480,9 @@ def ingest_once(store: RAGStore, limiter: RateLimiter, stop_event: threading.Eve
 
                 for fut in done:
                     in_flight.remove(fut)
-                    meta = fut_meta.pop(fut, {})
-                    fid = meta.get("id")
-                    name = meta.get("name", fid)
+                    file_meta = fut_meta.pop(fut, {})
+                    fid = file_meta.get("id")
+                    name = file_meta.get("name", fid)
 
                     try:
                         status = fut.result()
@@ -425,12 +499,14 @@ def ingest_once(store: RAGStore, limiter: RateLimiter, stop_event: threading.Eve
                         fail += 1
                         log.exception(
                             "ingest_failed",
-                            extra={
-                                "component": "ingest",
-                                "event": "failed",
-                                "file_id": fid,
-                                "file_name": name,
-                            },
+                            component="ingest",
+                            flow="ingest_file",
+                            meta=_file_log_meta(
+                                fid,
+                                name,
+                                mime_type=file_meta.get("mimeType"),
+                                modified_time=file_meta.get("modifiedTime"),
+                            ),
                         )
 
                     completed += 1
@@ -443,24 +519,43 @@ def ingest_once(store: RAGStore, limiter: RateLimiter, stop_event: threading.Eve
     except ShutdownRequested:
         stop_event.set()
         progress(force=True)
+    except Exception:
+        elapsed_ms = int((time.time() - t0) * 1000)
+        log.exception(
+            "ingest_run_failed",
+            component="ingest",
+            flow="ingest",
+            meta=_ingest_stats_meta(
+                total=total,
+                completed=completed,
+                ok=ok,
+                fail=fail,
+                skipped_unchanged=skipped_unchanged,
+                skipped_empty=skipped_empty,
+                workers=workers,
+                elapsed_ms=elapsed_ms,
+                stopped=stop_event.is_set(),
+            ),
+        )
+        raise
 
     elapsed_ms = int((time.time() - t0) * 1000)
     log.info(
         "ingest_done",
-        extra={
-            "component": "ingest",
-            "event": "done",
-            "elapsed_ms": elapsed_ms,
-            "count": {
-                "ok": ok,
-                "fail": fail,
-                "skipped_unchanged": skipped_unchanged,
-                "skipped_empty": skipped_empty,
-                "total": total,
-                "completed": completed,
-                "stopped": stop_event.is_set(),
-            },
-        },
+        component="ingest",
+        flow="ingest",
+        meta=_ingest_stats_meta(
+            total=total,
+            completed=completed,
+            ok=ok,
+            fail=fail,
+            skipped_unchanged=skipped_unchanged,
+            skipped_empty=skipped_empty,
+            workers=workers,
+            elapsed_ms=elapsed_ms,
+            stopped=stop_event.is_set(),
+            mode=settings.INGEST_MODE,
+        ),
     )
 
 
@@ -468,12 +563,7 @@ def _install_signal_handlers(stop_event: threading.Event) -> None:
     def _handler(signum: int, _frame) -> None:
         if not stop_event.is_set():
             log.warning(
-                "shutdown_signal",
-                extra={
-                    "component": "ingest",
-                    "event": "shutdown_signal",
-                    "count": {"signal": signum},
-                },
+                "shutdown_signal", component="ingest", flow="shutdown", meta={"signal": signum}
             )
             stop_event.set()
 
@@ -488,12 +578,28 @@ def main() -> None:
     stop_event = threading.Event()
     _install_signal_handlers(stop_event)
 
-    log.info("startup", extra={"component": "ingest", "event": "startup"})
     log.info(
-        "config", extra={"component": "ingest", "event": "config", "count": settings.safe_dump()}
+        "startup",
+        component="ingest",
+        flow="startup",
+        meta={
+            "pid": os.getpid(),
+            "mode": settings.INGEST_MODE,
+            "poll_seconds": settings.INGEST_POLL_SECONDS,
+        },
     )
+    log.info("config", component="ingest", flow="config", meta=settings.safe_dump())
 
-    store = RAGStore()
+    try:
+        store = RAGStore()
+    except Exception:
+        log.exception(
+            "store_init_failed",
+            component="ingest",
+            flow="startup",
+            meta={"qdrant_url": settings.QDRANT_URL},
+        )
+        raise
     limiter = RateLimiter(
         rate=settings.GOOGLE_API_RPS, burst=settings.GOOGLE_API_BURST, stop_event=stop_event
     )
@@ -510,11 +616,13 @@ def main() -> None:
     if grace > 0:
         log.info(
             "shutdown_grace",
-            extra={"component": "ingest", "event": "shutdown_grace", "count": {"seconds": grace}},
+            component="ingest",
+            flow="shutdown",
+            meta={"shutdown_grace_seconds": grace},
         )
         time.sleep(grace)
 
-    log.info("shutdown", extra={"component": "ingest", "event": "shutdown"})
+    log.info("shutdown", component="ingest", flow="shutdown", meta={"stopped": stop_event.is_set()})
 
 
 if __name__ == "__main__":

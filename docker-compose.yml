@@ -21,6 +21,7 @@ services:
   bot:
     <<: *common
     image: ghcr.io/hu553in/gdrive-assistant-bot:latest
+    platform: linux/amd64
     env_file:
       - .env
     depends_on:
@@ -32,11 +33,12 @@ services:
       timeout: 3s
       retries: 10
       start_period: 10s
-    command: ["uv", "run", "python", "-m", "gdrive_assistant_bot.bot"]
+    command: ["uv", "run", "--no-dev", "python", "-m", "gdrive_assistant_bot.bot"]
 
   ingest:
     <<: *common
     image: ghcr.io/hu553in/gdrive-assistant-bot:latest
+    platform: linux/amd64
     env_file:
       - .env
     depends_on:
@@ -48,7 +50,7 @@ services:
       timeout: 3s
       retries: 10
       start_period: 10s
-    command: ["uv", "run", "python", "-m", "gdrive_assistant_bot.ingest"]
+    command: ["uv", "run", "--no-dev", "python", "-m", "gdrive_assistant_bot.ingest"]
     secrets:
       - google_sa
 

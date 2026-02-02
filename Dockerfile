@@ -12,7 +12,8 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS runner
 WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app/src
+    PYTHONPATH=/app/src \
+    UV_PROJECT_ENVIRONMENT=/app/.venv
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
