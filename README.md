@@ -12,7 +12,7 @@ Semantic search and Q&A Telegram bot for Google Drive — powered by Qdrant and 
 
 ## Why this project
 
-If your Google Drive is full of Docs and Sheets and you keep asking questions like:
+If your Google Drive is full of documents and you keep asking questions like:
 
 - "What did I write last January?"
 - "Is there any document mentioning X?"
@@ -24,7 +24,7 @@ This bot turns Google Drive into a searchable knowledge base — and answers dir
 
 ## What it does
 
-- Recursively indexes files from Google Drive, including Google Docs and Sheets, from:
+- Recursively indexes documents from Google Drive, from:
   - specific folders, or
   - everything accessible to the account
 - Splits content into chunks, generates embeddings, and stores them in Qdrant
@@ -42,6 +42,13 @@ Currently supported:
 
 - Google Docs
 - Google Sheets
+
+Planned:
+
+- Google Slides
+- Text-based files (configuration files, source code, plain text)
+- PDF documents
+- Microsoft Office formats (DOC, DOCX, XLS, XLSX, PPT, PPTX)
 
 ---
 
