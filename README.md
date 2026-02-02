@@ -166,10 +166,3 @@ All settings are defined via `.env`.
 | `INGEST_HEALTH_PORT`                | no       | `8081`                                                        | Ingest health endpoint                            |
 
 Set either `GOOGLE_DRIVE_FOLDER_IDS` or `ALL_ACCESSIBLE=true`.
-
----
-
-## Roadmap
-
-- Support additional file types, including common text formats and office documents (PDF, DOC, DOCX, XLS, XLSX)
-- Add support for other cloud providers and storage backends
