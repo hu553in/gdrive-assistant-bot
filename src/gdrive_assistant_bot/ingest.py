@@ -1,17 +1,19 @@
 import os
-import random
 import signal
 import threading
 import time
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
-from typing import Any, TypeVar
+from typing import Any
 
 import structlog
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
 
+from .errors import ShutdownRequested
+from .extractors import init_extractors
+from .extractors.registry import get_drive_query_terms, get_extractor
+from .extractors.utils import download_binary, download_export, execute_with_backoff
 from .health import start_health_server
 from .logging import setup_logging
 from .rag import RAGStore
@@ -21,15 +23,9 @@ log = structlog.get_logger("gdrive-assistant-bot.ingest")
 
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
-DOC_MIME = "application/vnd.google-apps.document"
-SHEET_MIME = "application/vnd.google-apps.spreadsheet"
 FOLDER_MIME = "application/vnd.google-apps.folder"
-
-T = TypeVar("T")
-
-
-class ShutdownRequested(RuntimeError):
-    pass
+SHORTCUT_MIME = "application/vnd.google-apps.shortcut"
+init_extractors()
 
 
 class RateLimiter:
@@ -66,7 +62,7 @@ class RateLimiter:
 
             self.stop_event.wait(timeout=sleep_for)
 
-        raise ShutdownRequested("shutdown requested")
+        raise ShutdownRequested()
 
 
 _thread_local = threading.local()
@@ -74,6 +70,10 @@ _thread_local = threading.local()
 
 def _file_log_meta(file_id: str | None, file_name: str | None, **extra: Any) -> dict[str, Any]:
     return {"file_id": file_id, "file_name": file_name, **extra}
+
+
+def _is_shortcut(file_meta: dict[str, Any]) -> bool:
+    return file_meta.get("mimeType") == SHORTCUT_MIME
 
 
 def _ingest_stats_meta(  # noqa: PLR0913
@@ -130,47 +130,25 @@ def _get_thread_clients():
     return _thread_local.drive, _thread_local.docs, _thread_local.sheets
 
 
-def _execute_with_backoff[T](call: Callable[[], T], limiter: RateLimiter) -> T:
-    retries = settings.GOOGLE_BACKOFF_RETRIES
-    base_delay = settings.GOOGLE_BACKOFF_BASE_DELAY_SECONDS
-    max_delay = settings.GOOGLE_BACKOFF_MAX_DELAY_SECONDS
+def _get_extraction_context(limiter: RateLimiter, stop_event: threading.Event):
+    drive, docs, sheets = _get_thread_clients()
 
-    attempt = 0
-    while True:
-        limiter.acquire()
-        try:
-            return call()
-        except HttpError as e:
-            status = getattr(e, "status_code", None)
-            if status is None and hasattr(e, "resp"):
-                status = getattr(e.resp, "status", None)
+    class Context:
+        pass
 
-            retryable = status in (429, 500, 502, 503, 504)
-
-            if not retryable:
-                raise
-
-            attempt += 1
-            if attempt > retries:
-                raise
-
-            delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
-            delay *= 0.7 + random.random() * 0.6
-
-            log.warning(
-                "google_api_retry",
-                component="ingest",
-                flow="google_api",
-                meta={
-                    "status": status,
-                    "attempt": attempt,
-                    "delay_seconds": round(delay, 2),
-                    "max_retries": retries,
-                    "backoff_base_seconds": base_delay,
-                    "backoff_max_seconds": max_delay,
-                },
-            )
-            time.sleep(delay)
+    ctx = Context()
+    ctx.limiter = limiter
+    ctx.stop_event = stop_event
+    ctx.settings = settings
+    ctx.drive = drive
+    ctx.docs = docs
+    ctx.sheets = sheets
+    ctx.execute_with_backoff = lambda call: execute_with_backoff(call, limiter)
+    ctx.download_binary = lambda file_id: download_binary(drive, file_id, limiter, stop_event)
+    ctx.download_export = lambda file_id, mime: download_export(
+        drive, file_id, mime, limiter, stop_event
+    )
+    return ctx
 
 
 def _list_children(drive, parent_id: str, limiter: RateLimiter) -> list[dict[str, Any]]:
@@ -180,11 +158,14 @@ def _list_children(drive, parent_id: str, limiter: RateLimiter) -> list[dict[str
 
     while True:
         pt = page_token
-        resp = _execute_with_backoff(
+        resp = execute_with_backoff(
             lambda pt=pt: drive.files()
             .list(
                 q=q,
-                fields="nextPageToken, files(id, name, mimeType, modifiedTime)",
+                fields=(
+                    "nextPageToken, files(id, name, mimeType, modifiedTime, "
+                    "size, fileExtension, shortcutDetails)"
+                ),
                 pageToken=pt,
                 pageSize=1000,
             )
@@ -217,22 +198,37 @@ def _walk_recursive(
             mime = f.get("mimeType")
             if mime == FOLDER_MIME:
                 stack.append(f["id"])
-            elif mime in (DOC_MIME, SHEET_MIME):
+            elif _is_shortcut(f):
+                log.debug(
+                    "shortcut_skipped",
+                    component="ingest",
+                    flow="walk_recursive",
+                    meta={"file_id": f.get("id"), "file_name": f.get("name")},
+                )
+            elif get_extractor(f) is not None:
                 yield f
 
 
 def _list_all_accessible_files(drive, limiter: RateLimiter) -> list[dict[str, Any]]:
-    q = f"trashed=false and (mimeType='{DOC_MIME}' or mimeType='{SHEET_MIME}')"
+    terms = get_drive_query_terms()
+    if terms:
+        mime_conditions = " or ".join(terms)
+        q = f"trashed=false and ({mime_conditions})"
+    else:
+        q = "trashed=false"
     files: list[dict[str, Any]] = []
     page_token = None
 
     while True:
         pt = page_token
-        resp = _execute_with_backoff(
+        resp = execute_with_backoff(
             lambda pt=pt: drive.files()
             .list(
                 q=q,
-                fields="nextPageToken, files(id, name, mimeType, modifiedTime)",
+                fields=(
+                    "nextPageToken, files(id, name, mimeType, modifiedTime, "
+                    "size, fileExtension, shortcutDetails)"
+                ),
                 pageToken=pt,
                 pageSize=1000,
             )
@@ -244,56 +240,7 @@ def _list_all_accessible_files(drive, limiter: RateLimiter) -> list[dict[str, An
         if not page_token:
             break
 
-    return files
-
-
-def _extract_doc_text(docs, doc_id: str, limiter: RateLimiter) -> str:
-    doc = _execute_with_backoff(lambda: docs.documents().get(documentId=doc_id).execute(), limiter)
-    body = (doc.get("body") or {}).get("content") or []
-
-    out: list[str] = []
-    for el in body:
-        p = el.get("paragraph")
-        if not p:
-            continue
-        for pe in p.get("elements") or []:
-            tr = pe.get("textRun")
-            if tr and "content" in tr:
-                out.append(tr["content"])
-
-    return "".join(out).replace("\u000b", "\n").strip()
-
-
-def _extract_sheet_text(sheets, spreadsheet_id: str, limiter: RateLimiter) -> str:
-    ss = _execute_with_backoff(
-        lambda: sheets.spreadsheets().get(spreadsheetId=spreadsheet_id).execute(), limiter
-    )
-    sheet_infos = ss.get("sheets") or []
-
-    lines: list[str] = []
-    for s in sheet_infos:
-        if not s or not isinstance(s, dict):
-            continue
-        title = (s.get("properties") or {}).get("title") or "Sheet"
-        rng = f"'{title}'!A1:ZZ{settings.GOOGLE_MAX_ROWS_PER_SHEET}"
-        resp = _execute_with_backoff(
-            lambda rng=rng: sheets.spreadsheets()
-            .values()
-            .get(spreadsheetId=spreadsheet_id, range=rng)
-            .execute(),
-            limiter,
-        )
-        values = resp.get("values") or []
-        if not values:
-            continue
-
-        lines.append(f"=== SHEET: {title} ===")
-        for row in values:
-            row_str = "\t".join(str(x).strip() for x in row if str(x).strip())
-            if row_str:
-                lines.append(row_str)
-
-    return "\n".join(lines).strip()
+    return [f for f in files if not _is_shortcut(f) and get_extractor(f) is not None]
 
 
 def _ingest_one_file(
@@ -302,8 +249,9 @@ def _ingest_one_file(
     """
     Returns status: ok | skipped_unchanged | skipped_empty
     """
+    status = "skipped_empty"
     if stop_event.is_set():
-        return "skipped_empty"
+        return status
 
     fid = file_meta["id"]
     name = file_meta.get("name", fid)
@@ -313,38 +261,61 @@ def _ingest_one_file(
     if mtime and store.exists_file_mtime(fid, mtime):
         return "skipped_unchanged"
 
-    _, docs, sheets = _get_thread_clients()
+    if _is_shortcut(file_meta):
+        log.debug(
+            "shortcut_skipped",
+            component="ingest",
+            flow="ingest_file",
+            meta={"file_id": fid, "file_name": name},
+        )
+        return status
 
-    if mime == DOC_MIME:
-        text = _extract_doc_text(docs, fid, limiter)
-        ftype = "gdoc"
-    elif mime == SHEET_MIME:
-        text = _extract_sheet_text(sheets, fid, limiter)
-        ftype = "gsheet"
-    else:
-        return "skipped_empty"
+    extractor = get_extractor(file_meta)
+    if extractor is None:
+        log.debug(
+            "unsupported_file_type",
+            component="ingest",
+            flow="ingest_file",
+            meta={"file_id": fid, "file_name": name, "mime_type": mime},
+        )
+        return status
 
-    if stop_event.is_set():
-        return "skipped_empty"
+    context = _get_extraction_context(limiter, stop_event)
+    try:
+        result = extractor.extract(file_meta, context)
+    except ShutdownRequested:
+        raise
+    except Exception:
+        log.exception(
+            "extraction_failed",
+            component="ingest",
+            flow="ingest_file",
+            meta={"file_id": fid, "file_name": name, "mime_type": mime},
+        )
+        return status
 
-    if not text.strip():
-        return "skipped_empty"
+    if not stop_event.is_set() and result.text.strip():
+        payload = {
+            "file_id": fid,
+            "file_name": name,
+            "file_type": result.file_type,
+            "modified_time": mtime,
+            **result.metadata,
+        }
+        store.delete_by_file_id(fid)
+        n = store.upsert_document(doc_id=fid, source="gdrive", text=result.text, payload=payload)
 
-    store.delete_by_file_id(fid)
-    n = store.upsert_document(
-        doc_id=fid,
-        source="gdrive",
-        text=text,
-        payload={"file_id": fid, "file_name": name, "file_type": ftype, "modified_time": mtime},
-    )
+        log.info(
+            "indexed",
+            component="ingest",
+            flow="ingest_file",
+            meta=_file_log_meta(
+                fid, name, chunks=n, file_type=result.file_type, modified_time=mtime
+            ),
+        )
+        status = "ok"
 
-    log.info(
-        "indexed",
-        component="ingest",
-        flow="ingest_file",
-        meta=_file_log_meta(fid, name, chunks=n, file_type=ftype, modified_time=mtime),
-    )
-    return "ok"
+    return status
 
 
 def ingest_once(store: RAGStore, limiter: RateLimiter, stop_event: threading.Event) -> None:  # noqa: PLR0912, PLR0915
