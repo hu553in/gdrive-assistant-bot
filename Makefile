@@ -8,7 +8,7 @@ ensure_env:
 	if [ ! -f .env ]; then cp .env.example .env; fi
 
 install_deps:
-	uv tool install pre-commit
+	uv tool install prek
 	uv tool install ruff
 	uv sync --frozen --no-install-project
 
