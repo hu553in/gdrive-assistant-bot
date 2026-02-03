@@ -37,7 +37,7 @@ class ExtractorRegistry:
         return list(self._mime_map.keys())
 
     def list_drive_query_terms(self) -> list[str]:
-        """Build Drive query terms from supported types/prefixes."""
+        """Build Google Drive query terms from supported types/prefixes."""
         terms: list[str] = []
         for mime in self._mime_map:
             terms.append(f"mimeType='{mime}'")
@@ -65,5 +65,5 @@ def get_supported_mimes() -> list[str]:
 
 
 def get_drive_query_terms() -> list[str]:
-    """Get Drive query terms for supported MIME types."""
+    """Get Google Drive query terms for supported MIME types."""
     return _registry.list_drive_query_terms()
