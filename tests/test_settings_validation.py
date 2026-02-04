@@ -69,7 +69,7 @@ def test_llm_enabled_requires_all_fields() -> None:
 
 def test_telegram_private_mode_flags() -> None:
     class SettingsIgnoringEnvFile(Settings):
-        model_config = SettingsConfigDict(extra="ignore", env_ignore_empty=True)
+        model_config = SettingsConfigDict(env_file=None, extra="ignore", env_ignore_empty=True)
 
     assert _valid_settings(SettingsIgnoringEnvFile).is_telegram_private_mode() is False
     assert (
