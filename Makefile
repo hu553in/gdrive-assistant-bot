@@ -8,8 +8,6 @@ ensure_env:
 	if [ ! -f .env ]; then cp .env.example .env; fi
 
 install_deps:
-	uv tool install prek
-	uv tool install ruff
 	uv sync --frozen --no-install-project
 
 sync_deps:
@@ -19,7 +17,7 @@ check_deps_updates:
 	uv tree --outdated --depth=1 | grep latest
 
 check_deps_vuln:
-	uvx pysentry-rs --sources pypa,pypi,osv --fail-on low .
+	.venv/bin/pysentry-rs --sources pypa,pypi,osv --fail-on low .
 
 start: ensure_env
 	docker compose $(COMPOSE_FILES) \
@@ -32,7 +30,10 @@ stop: ensure_env
 restart: stop start
 
 lint:
-	ruff check --fix
+	.venv/bin/ruff check --fix
 
 fmt:
-	ruff format
+	.venv/bin/ruff format
+
+test:
+	.venv/bin/pytest

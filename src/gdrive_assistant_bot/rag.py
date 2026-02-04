@@ -21,7 +21,7 @@ class SearchHit:
 
 class RAGStore:
     def __init__(self) -> None:
-        self.client = QdrantClient(url=settings.QDRANT_URL)
+        self.client = QdrantClient(url=str(settings.QDRANT_URL))
         self.embedder = TextEmbedding(model_name=settings.EMBED_MODEL)
 
         dim = len(next(self.embedder.embed(["ping"])))

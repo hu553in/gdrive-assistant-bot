@@ -31,13 +31,15 @@ class GoogleSheetsExtractor(FileExtractor):
             if not sheet_info or not isinstance(sheet_info, dict):
                 continue
             title = (sheet_info.get("properties") or {}).get("title") or "Sheet"
-            row_limit = context.settings.GOOGLE_MAX_ROWS_PER_SHEET
+            row_limit = context.settings.STORAGE_GOOGLE_DRIVE_MAX_ROWS_PER_SHEET
             rng = f"'{title}'!A1:ZZ{row_limit}"
             resp = context.execute_with_backoff(
-                lambda rng=rng: context.sheets.spreadsheets()
-                .values()
-                .get(spreadsheetId=spreadsheet_id, range=rng)
-                .execute()
+                lambda rng=rng: (
+                    context.sheets.spreadsheets()
+                    .values()
+                    .get(spreadsheetId=spreadsheet_id, range=rng)
+                    .execute()
+                )
             )
             values = resp.get("values") or []
             if not values:

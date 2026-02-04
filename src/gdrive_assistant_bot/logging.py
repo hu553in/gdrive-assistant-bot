@@ -12,6 +12,7 @@ def setup_logging() -> None:
     Default format is JSON (one line = one JSON object) for log aggregation tooling.
     Set LOG_PLAIN_TEXT=1 for plain text logs in development.
     """
+
     timestamper = structlog.processors.TimeStamper(fmt="iso", utc=True, key="timestamp")
     timestamperUnix = structlog.processors.TimeStamper(fmt=None, utc=True, key="timestamp_unix")
 

@@ -6,26 +6,32 @@ requires-python = ">=3.13"
 readme = "README.md"
 
 dependencies = [
-  "structlog>=25.5.0",
-  "qdrant-client>=1.16.2",
   "fastembed>=0.7.4",
-  "python-telegram-bot>=22.6",
-  "pydantic>=2.12.5",
-  "pydantic-settings>=2.12.0",
-  "openai>=2.16.0",
   "google-api-python-client>=2.189.0",
-  "google-auth>=2.48.0",
   "google-auth-httplib2>=0.3.0",
+  "google-auth>=2.48.0",
+  "openai>=2.16.0",
+  "pydantic-settings>=2.12.0",
+  "pydantic>=2.12.5",
+  "python-telegram-bot>=22.6",
+  "qdrant-client>=1.16.2",
+  "structlog>=25.5.0",
 ]
 
 [dependency-groups]
 dev = [
-    "prek>=0.3.1",
-    "ruff>=0.15.0",
+  "prek>=0.3.1",
+  "pysentry-rs>=0.4.0",
+  "pytest-cov>=7.0.0",
+  "pytest>=9.0.2",
+  "ruff>=0.15.0",
 ]
 
 [tool.uv]
 link-mode = "copy"
+
+[tool.pytest.ini_options]
+addopts = "--cov=src --cov-report=term-missing --cov-fail-under=20"
 
 [tool.ruff]
 target-version = "py313"

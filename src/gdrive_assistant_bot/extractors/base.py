@@ -28,6 +28,7 @@ class FileExtractor(ABC):
     @property
     def mime_prefixes(self) -> list[str]:
         """List of supported MIME type prefixes (for Google Drive queries)."""
+
         return []
 
     @abstractmethod

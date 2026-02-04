@@ -27,6 +27,7 @@ def start_health_server(host: str, port: int, *, component: str) -> None:
     """
     Starts a tiny HTTP server in a daemon thread that exposes /healthz.
     """
+
     if port <= 0:
         return
 
