@@ -56,23 +56,8 @@ def test_docker_smoke_bot_and_ingest() -> None:
 
     override = {
         "services": {
-            "bot": {
-                "environment": {
-                    "SMOKE_TEST_SECONDS": str(smoke_seconds),
-                    "TELEGRAM_BOT_TOKEN": "smoke",
-                    "STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE": "true",
-                    "STORAGE_GOOGLE_DRIVE_FOLDER_IDS": json.dumps([]),
-                }
-            },
-            "ingest": {
-                "environment": {
-                    "SMOKE_TEST_SECONDS": str(smoke_seconds),
-                    "TELEGRAM_BOT_TOKEN": "smoke",
-                    "INGEST_MODE": "once",
-                    "STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE": "true",
-                    "STORAGE_GOOGLE_DRIVE_FOLDER_IDS": json.dumps([]),
-                }
-            },
+            "bot": {"environment": {"SMOKE_TEST_SECONDS": str(smoke_seconds)}},
+            "ingest": {"environment": {"SMOKE_TEST_SECONDS": str(smoke_seconds)}},
         }
     }
 

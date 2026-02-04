@@ -35,5 +35,5 @@ lint:
 fmt:
 	.venv/bin/ruff format
 
-test:
+test: ensure_env
 	.venv/bin/pytest
