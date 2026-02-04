@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
-      - run: make install_deps
+      - run: make install_deps SHELL=/bin/sh
       - uses: j178/prek-action@v1
         with:
           extra_args: --all-files --hook-stage pre-commit
