@@ -23,12 +23,12 @@ services:
     image: ghcr.io/hu553in/gdrive-assistant-bot:latest
     platform: linux/amd64
     env_file:
-      - .env
+      - ${ENV_FILE:-.env}
     depends_on:
       qdrant:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      test: ["CMD", "wget", "-qO-", "http://${HEALTH_HOST:-localhost}:${BOT_HEALTH_PORT:-8080}/healthz"]
       interval: 10s
       timeout: 3s
       retries: 10
@@ -40,12 +40,12 @@ services:
     image: ghcr.io/hu553in/gdrive-assistant-bot:latest
     platform: linux/amd64
     env_file:
-      - .env
+      - ${ENV_FILE:-.env}
     depends_on:
       qdrant:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8081/healthz"]
+      test: ["CMD", "wget", "-qO-", "http://${HEALTH_HOST:-localhost}:${INGEST_HEALTH_PORT:-8081}/healthz"]
       interval: 10s
       timeout: 3s
       retries: 10
@@ -59,4 +59,4 @@ volumes:
 
 secrets:
   google_sa:
-    file: ./secrets/google_sa.json
+    file: ${GOOGLE_SA_FILE:-./secrets/google_sa.json}

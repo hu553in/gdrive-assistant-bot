@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
 import time
@@ -18,6 +19,11 @@ COMPOSE_BASE = [
     "-f",
     "docker-compose.override.dev.yml",
 ]
+ENV_FILE_TEMPLATE = """\
+TELEGRAM_BOT_TOKEN=example
+STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE=true
+SMOKE_TEST_SECONDS={seconds}
+"""
 
 
 def _docker_available() -> bool:
@@ -52,29 +58,23 @@ def test_docker_smoke_bot_and_ingest() -> None:
         pytest.skip("Docker unavailable")
 
     project = f"smoke-{uuid4().hex[:8]}"
-    smoke_seconds = 20
+    seconds = 20
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir_path = Path(tmpdir)
 
-        override = {
-            "services": {
-                "bot": {"environment": {"SMOKE_TEST_SECONDS": str(smoke_seconds)}},
-                "ingest": {"environment": {"SMOKE_TEST_SECONDS": str(smoke_seconds)}},
-            },
-            "secrets": {"google_sa": {"file": str(tmpdir_path / "google_sa.json")}},
-        }
+        google_sa_path = tmpdir_path / "google_sa.json"
+        google_sa_path.write_text(json.dumps({}, indent=2))
+        os.environ["GOOGLE_SA_FILE"] = str(google_sa_path)
 
-        override_path = tmpdir_path / "docker-compose.smoke.yml"
-        override_path.write_text(json.dumps(override, indent=2))
+        env_path = tmpdir_path / ".env"
+        env_path.write_text(ENV_FILE_TEMPLATE.format(seconds=seconds))
+        os.environ["ENV_FILE"] = str(env_path)
 
-        secrets_path = tmpdir_path / "google_sa.json"
-        secrets_path.write_text(json.dumps({}, indent=2))
-
-        cmd = [*COMPOSE_BASE, "-p", project, "-f", str(override_path)]
+        cmd = [*COMPOSE_BASE, "-p", project]
 
         try:
-            _run([*cmd, "up", "-d", "--build"], cwd=ROOT, timeout=900)
+            _run([*cmd, "up", "-d", "--build", "--wait"], cwd=ROOT, timeout=900)
             _wait_for_health(project, "bot", "http://localhost:8080/healthz")
             _wait_for_health(project, "ingest", "http://localhost:8081/healthz")
         finally:

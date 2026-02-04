@@ -10,7 +10,7 @@ from .health import start_health_server
 from .logging import setup_logging
 from .rag import RAGStore
 from .settings import settings
-from .smoke import is_smoke_test_mode
+from .smoke_test import is_smoke_test_mode
 
 _CLOSE_LOOP = False
 

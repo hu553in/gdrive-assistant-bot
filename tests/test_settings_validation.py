@@ -1,18 +1,17 @@
 from typing import Any
 
 import pytest
-from pydantic_settings import SettingsConfigDict
 
 from gdrive_assistant_bot.settings import Settings
 
 
-def _valid_settings(cls: type[Settings] = Settings, **kwargs: dict[str, Any]) -> Settings:
+def _valid_settings(**kwargs: dict[str, Any]) -> Settings:
     if (
         "STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE" not in kwargs
         and "STORAGE_GOOGLE_DRIVE_FOLDER_IDS" not in kwargs
     ):
         kwargs["STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE"] = True
-    return cls(TELEGRAM_BOT_TOKEN="example", **kwargs)
+    return Settings(TELEGRAM_BOT_TOKEN="example", **kwargs)
 
 
 def test_literal_types_validated() -> None:
@@ -68,19 +67,6 @@ def test_llm_enabled_requires_all_fields() -> None:
 
 
 def test_telegram_private_mode_flags() -> None:
-    class SettingsIgnoringEnvFile(Settings):
-        model_config = SettingsConfigDict(env_file=None, extra="ignore", env_ignore_empty=True)
-
-    assert _valid_settings(SettingsIgnoringEnvFile).is_telegram_private_mode() is False
-    assert (
-        _valid_settings(
-            SettingsIgnoringEnvFile, TELEGRAM_ALLOWED_USER_IDS=[1]
-        ).is_telegram_private_mode()
-        is True
-    )
-    assert (
-        _valid_settings(
-            SettingsIgnoringEnvFile, TELEGRAM_ALLOWED_GROUP_IDS=[2]
-        ).is_telegram_private_mode()
-        is True
-    )
+    assert _valid_settings().is_telegram_private_mode() is False
+    assert _valid_settings(TELEGRAM_ALLOWED_USER_IDS=[1]).is_telegram_private_mode() is True
+    assert _valid_settings(TELEGRAM_ALLOWED_GROUP_IDS=[2]).is_telegram_private_mode() is True

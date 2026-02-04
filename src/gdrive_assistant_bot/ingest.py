@@ -14,7 +14,7 @@ from .providers import init_providers
 from .providers.registry import get_provider, list_providers
 from .rag import RAGStore
 from .settings import settings
-from .smoke import is_smoke_test_mode
+from .smoke_test import is_smoke_test_mode
 
 log = structlog.get_logger("gdrive-assistant-bot.ingest")
 
