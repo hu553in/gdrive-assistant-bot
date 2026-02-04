@@ -179,3 +179,15 @@ Set either `STORAGE_GOOGLE_DRIVE_FOLDER_IDS` (JSON array) or
 
 The service account file must exist at the configured `STORAGE_GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`
 path.
+
+---
+
+## Testing
+
+- Run tests: `make test`
+- Integration tests use a real Qdrant container via `testcontainers` and are skipped when Docker is
+  unavailable.
+- Docker smoke tests build the local images and start `bot`/`ingest` in a short-lived smoke mode.
+  They use `SMOKE_TEST_SECONDS` to keep the health endpoints alive during the check.
+- To run only integration tests: `.venv/bin/pytest -m integration`
+- To skip integration tests: `.venv/bin/pytest -m "not integration"`

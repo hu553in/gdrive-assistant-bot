@@ -14,6 +14,7 @@ from .providers import init_providers
 from .providers.registry import get_provider, list_providers
 from .rag import RAGStore
 from .settings import settings
+from .smoke import is_smoke_test_mode
 
 log = structlog.get_logger("gdrive-assistant-bot.ingest")
 
@@ -48,6 +49,9 @@ def main() -> None:
         },
     )
     log.info("config", component="ingest", flow="config", meta=settings.model_dump(mode="json"))
+
+    if is_smoke_test_mode("ingest", log=log):
+        return
 
     init_extractors()
     init_providers()

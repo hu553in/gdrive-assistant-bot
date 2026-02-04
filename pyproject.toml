@@ -23,15 +23,20 @@ dev = [
   "prek>=0.3.1",
   "pysentry-rs>=0.4.0",
   "pytest-cov>=7.0.0",
+  "pytest-xdist>=3.8.0",
   "pytest>=9.0.2",
   "ruff>=0.15.0",
+  "testcontainers[qdrant]>=4.14.1",
 ]
 
 [tool.uv]
 link-mode = "copy"
 
 [tool.pytest.ini_options]
-addopts = "--cov=src --cov-report=term-missing --cov-fail-under=20"
+addopts = "-n=logical --cov=src --cov-report=term-missing --cov-fail-under=80"
+markers = [
+  "integration: requires Docker/Testcontainers and is skipped if unavailable",
+]
 
 [tool.ruff]
 target-version = "py313"

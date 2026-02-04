@@ -10,6 +10,7 @@ from .health import start_health_server
 from .logging import setup_logging
 from .rag import RAGStore
 from .settings import settings
+from .smoke import is_smoke_test_mode
 
 _CLOSE_LOOP = False
 
@@ -31,6 +32,9 @@ def main() -> None:
         },
     )
     log.info("config", component="bot", flow="config", meta=settings.model_dump(mode="json"))
+
+    if is_smoke_test_mode("bot", log=log):
+        return
 
     try:
         store = RAGStore()
