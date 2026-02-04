@@ -54,16 +54,22 @@ def test_docker_smoke_bot_and_ingest() -> None:
     project = f"smoke-{uuid4().hex[:8]}"
     smoke_seconds = 20
 
-    override = {
-        "services": {
-            "bot": {"environment": {"SMOKE_TEST_SECONDS": str(smoke_seconds)}},
-            "ingest": {"environment": {"SMOKE_TEST_SECONDS": str(smoke_seconds)}},
-        }
-    }
-
     with tempfile.TemporaryDirectory() as tmpdir:
-        override_path = Path(tmpdir) / "docker-compose.smoke.yml"
+        tmpdir_path = Path(tmpdir)
+
+        override = {
+            "services": {
+                "bot": {"environment": {"SMOKE_TEST_SECONDS": str(smoke_seconds)}},
+                "ingest": {"environment": {"SMOKE_TEST_SECONDS": str(smoke_seconds)}},
+            },
+            "secrets": {"google_sa": {"file": str(tmpdir_path / "google_sa.json")}},
+        }
+
+        override_path = tmpdir_path / "docker-compose.smoke.yml"
         override_path.write_text(json.dumps(override, indent=2))
+
+        secrets_path = tmpdir_path / "google_sa.json"
+        secrets_path.write_text(json.dumps({}, indent=2))
 
         cmd = [*COMPOSE_BASE, "-p", project, "-f", str(override_path)]
 
