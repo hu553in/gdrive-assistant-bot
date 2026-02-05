@@ -37,3 +37,5 @@ fmt:
 
 test:
 	.venv/bin/pytest
+
+check: fmt lint test
