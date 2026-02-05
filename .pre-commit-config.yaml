@@ -57,6 +57,12 @@ repos:
       - id: bandit
         stages: [pre-commit]
         args: [-ll]
+  - repo: https://github.com/markdownlint/markdownlint
+    rev: v0.15.0
+    hooks:
+      - id: markdownlint_docker
+        stages: [pre-commit]
+        args: ["--style", ".mdl_style.rb"]
   - repo: local
     hooks:
       - id: test

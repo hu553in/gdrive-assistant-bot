@@ -25,8 +25,8 @@ This bot turns Google Drive into a searchable knowledge base — and answers dir
 ## What it does
 
 - Recursively indexes documents from Google Drive, from:
-  - specific folders, or
-  - everything accessible to the account
+   - specific folders, or
+   - everything accessible to the account
 - Splits content into chunks, generates embeddings, and stores them in Qdrant
 - Answers questions via `/ask` using semantic search
 - Optionally uses an OpenAI-compatible LLM to generate final answers
@@ -77,7 +77,7 @@ flowchart LR
     ING[Ingester]
     BOT[Telegram bot]
     RAG[RAG store]
-    QD[("Qdrant<br/>(vector DB)")]
+    QD[("Qdrant<br>(vector DB)")]
 
     U -->|/ingest notes| BOT
     CS -->|files & updates| ING
@@ -93,8 +93,8 @@ flowchart LR
     U[User]
     BOT[Telegram bot]
     RAG[RAG store]
-    QD[("Qdrant<br/>(vector DB)")]
-    LLM["LLM<br/>(optional)"]
+    QD[("Qdrant<br>(vector DB)")]
+    LLM["LLM<br>(optional)"]
 
     U -->|/ask question| BOT
     BOT -->|question| RAG
@@ -111,14 +111,14 @@ flowchart LR
 
 1. Copy environment config: `cp .env.example .env`
 2. Configure Google Drive access:
-   - Create a Google service account
-   - Download its JSON key
-   - Place it at `secrets/google_sa.json`
-   - Share target Google Drive folders with the service account email
+  - Create a Google service account
+  - Download its JSON key
+  - Place it at `secrets/google_sa.json`
+  - Share target Google Drive folders with the service account email
 3. Set required environment variables:
-   - `TELEGRAM_BOT_TOKEN`
-   - `STORAGE_BACKEND=google_drive`
-   - Either `STORAGE_GOOGLE_DRIVE_FOLDER_IDS` (JSON array) or `STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE=true`
+  - `TELEGRAM_BOT_TOKEN`
+  - `STORAGE_BACKEND=google_drive`
+  - Either `STORAGE_GOOGLE_DRIVE_FOLDER_IDS` (JSON array) or `STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE=true`
 4. Start services: `make start`
 5. Stop everything: `make stop`
 

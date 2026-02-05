@@ -30,12 +30,11 @@ stop: ensure_env
 restart: stop start
 
 lint:
-	.venv/bin/ruff check --fix
-
-fmt:
 	.venv/bin/ruff format
+	.venv/bin/ruff check --fix
 
 test:
 	.venv/bin/pytest
 
-check: fmt lint test
+check:
+	.venv/bin/prek --all-files --hook-stage pre-commit
