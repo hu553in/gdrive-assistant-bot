@@ -66,21 +66,41 @@ Planned:
 The system consists of three main components: ingestion, retrieval, and answering.
 Files are indexed in the background and queried via a Telegram bot.
 
-### System flow
+### System flows
+
+#### Ingestion
 
 ```mermaid
 flowchart LR
     U[User]
-    GD[Cloud storage<br/>documents]
-    ING[Ingest service]
-    QD[(Qdrant<br/>vector DB)]
+    CS[Cloud storage]
+    ING[Ingester]
     BOT[Telegram bot]
-    LLM[LLM<br/>// optional]
-    U -->|questions & notes| BOT
-    GD -->|files & updates| ING
-    ING -->|embeddings| QD
-    BOT -->|semantic search| QD
-    QD -->|relevant chunks| BOT
+    RAG[RAG store]
+    QD[("Qdrant<br/>(vector DB)")]
+
+    U -->|/ingest notes| BOT
+    CS -->|files & updates| ING
+    ING -->|content + metadata| RAG
+    BOT -->|content + metadata| RAG
+    RAG -->|upsert vectors| QD
+```
+
+#### Retrieval & answering
+
+```mermaid
+flowchart LR
+    U[User]
+    BOT[Telegram bot]
+    RAG[RAG store]
+    QD[("Qdrant<br/>(vector DB)")]
+    LLM["LLM<br/>(optional)"]
+
+    U -->|/ask question| BOT
+    BOT -->|question| RAG
+    RAG -->|query vectors| QD
+    QD -->|search hits| RAG
+    RAG -->|relevant chunks| BOT
     BOT -->|context| LLM
     LLM -->|final answer| BOT
 ```
