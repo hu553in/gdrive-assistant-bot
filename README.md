@@ -106,15 +106,15 @@ flowchart LR
 
 1. Copy environment config: `cp .env.example .env`
 2. Configure Google Drive access:
-  - Create a Google service account
-  - Download its JSON key
-  - Place it at `secrets/google_sa.json`
-  - Share target Google Drive folders with the service account email
-  - Enable Google Drive API, Google Docs API, Google Sheets API, and Google Slides API
+   - Create a Google service account
+   - Download its JSON key
+   - Place it at `secrets/google_sa.json`
+   - Share target Google Drive folders with the service account email
+   - Enable Google Drive API, Google Docs API, Google Sheets API, and Google Slides API
 3. Set required environment variables:
-  - `TELEGRAM_BOT_TOKEN`
-  - `STORAGE_BACKEND=google_drive`
-  - Either `STORAGE_GOOGLE_DRIVE_FOLDER_IDS` (JSON array) or `STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE=true`
+   - `TELEGRAM_BOT_TOKEN`
+   - `STORAGE_BACKEND=google_drive`
+   - Either `STORAGE_GOOGLE_DRIVE_FOLDER_IDS` (JSON array) or `STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE=true`
 4. Start services: `make start`
 5. Stop everything: `make stop`
 
