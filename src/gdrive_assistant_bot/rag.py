@@ -8,8 +8,11 @@ from typing import Any
 from fastembed import TextEmbedding
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qm
+from qdrant_client.http.exceptions import ApiException
 
 from .settings import settings
+
+_NOT_FOUND_STATUS = 404
 
 
 @dataclass(slots=True)
@@ -33,8 +36,9 @@ class RAGStore:
         try:
             self.client.get_collection(col)
             return
-        except Exception:
-            pass  # Collection doesn't exist or error occurred; proceed to create it
+        except ApiException as exc:
+            if getattr(exc, "status_code", None) != _NOT_FOUND_STATUS:
+                raise
 
         self.client.create_collection(
             collection_name=col,

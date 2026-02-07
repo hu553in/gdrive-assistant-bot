@@ -68,7 +68,7 @@ class GoogleDriveProvider(StorageProvider):
             raise
 
         if settings.STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE:
-            files = self._list_all_accessible_files(drive, limiter, file_filter)
+            files = self._list_all_accessible_files(drive, limiter, file_filter, stop_event)
             log.warning(
                 "all_accessible_enabled",
                 component="ingest",
@@ -167,12 +167,16 @@ class GoogleDriveProvider(StorageProvider):
                 return True
         return ext in {x.lower() for x in file_filter.extensions} if ext else False
 
-    def _list_children(self, drive: Any, parent_id: str, limiter: Limiter) -> list[dict[str, Any]]:
+    def _list_children(
+        self, drive: Any, parent_id: str, limiter: Limiter, stop_event: StopEvent
+    ) -> list[dict[str, Any]]:
         q = f"'{parent_id}' in parents and trashed=false"
         files: list[dict[str, Any]] = []
         page_token = None
 
         while True:
+            if stop_event.is_set():
+                break
             pt = page_token
             resp = execute_with_backoff(
                 lambda pt=pt: (
@@ -214,7 +218,7 @@ class GoogleDriveProvider(StorageProvider):
                 continue
             seen.add(folder_id)
 
-            for f in self._list_children(drive, folder_id, limiter):
+            for f in self._list_children(drive, folder_id, limiter, stop_event):
                 if stop_event.is_set():
                     break
                 mime = f.get("mimeType")
@@ -242,7 +246,7 @@ class GoogleDriveProvider(StorageProvider):
         return terms
 
     def _list_all_accessible_files(
-        self, drive: Any, limiter: Limiter, file_filter: FileTypeFilter
+        self, drive: Any, limiter: Limiter, file_filter: FileTypeFilter, stop_event: StopEvent
     ) -> list[dict[str, Any]]:
         terms = self._build_drive_query_terms(file_filter)
         if terms:
@@ -254,6 +258,8 @@ class GoogleDriveProvider(StorageProvider):
         page_token = None
 
         while True:
+            if stop_event.is_set():
+                break
             pt = page_token
             resp = execute_with_backoff(
                 lambda pt=pt: (

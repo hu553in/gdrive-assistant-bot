@@ -20,7 +20,9 @@ from ...settings import settings
 log = structlog.get_logger("gdrive-assistant-bot.ingest")
 
 # Status codes returned by IngestService.
-IngestStatus = Literal["ok", "skipped_unchanged", "skipped_empty"]
+IngestStatus = Literal[
+    "ok", "failed", "skipped_unchanged", "skipped_empty", "skipped_unsupported", "skipped_stopped"
+]
 
 
 class IngestStore(Protocol):
@@ -55,6 +57,8 @@ class IngestService:
         fail: int,
         skipped_unchanged: int,
         skipped_empty: int,
+        skipped_unsupported: int,
+        skipped_stopped: int,
         workers: int,
         elapsed_ms: int,
         in_flight: int | None = None,
@@ -68,6 +72,8 @@ class IngestService:
             "fail": fail,
             "skipped_unchanged": skipped_unchanged,
             "skipped_empty": skipped_empty,
+            "skipped_unsupported": skipped_unsupported,
+            "skipped_stopped": skipped_stopped,
             "workers": workers,
             "elapsed_ms": elapsed_ms,
         }
@@ -89,9 +95,8 @@ class IngestService:
     def _ingest_one_file(
         self, file_meta: StorageFileMeta, limiter: Limiter, stop_event: threading.Event
     ) -> IngestStatus:
-        status: IngestStatus = "skipped_empty"
         if stop_event.is_set():
-            return status
+            return "skipped_stopped"
 
         fid = file_meta.id
         name = file_meta.name or fid
@@ -110,7 +115,7 @@ class IngestService:
                 flow="ingest_file",
                 meta={"file_id": fid, "file_name": name, "mime_type": mime},
             )
-            return status
+            return "skipped_unsupported"
 
         context = self.provider.build_extraction_context(limiter, stop_event)
         try:
@@ -124,32 +129,32 @@ class IngestService:
                 flow="ingest_file",
                 meta={"file_id": fid, "file_name": name, "mime_type": mime},
             )
-            return status
+            return "failed"
 
-        if not stop_event.is_set() and result.text.strip():
-            payload = {
-                "file_id": fid,
-                "file_name": name,
-                "file_type": result.file_type,
-                "modified_time": mtime,
-                **result.metadata,
-            }
-            self.store.delete_by_file_id(fid)
-            n = self.store.upsert_document(
-                doc_id=fid, source=self.provider.name, text=result.text, payload=payload
-            )
+        if stop_event.is_set() or not result.text.strip():
+            return "skipped_stopped" if stop_event.is_set() else "skipped_empty"
 
-            log.info(
-                "indexed",
-                component="ingest",
-                flow="ingest_file",
-                meta=self._file_log_meta(
-                    fid, name, chunks=n, file_type=result.file_type, modified_time=mtime
-                ),
-            )
-            status = "ok"
+        payload = {
+            "file_id": fid,
+            "file_name": name,
+            "file_type": result.file_type,
+            "modified_time": mtime,
+            **result.metadata,
+        }
+        self.store.delete_by_file_id(fid)
+        n = self.store.upsert_document(
+            doc_id=fid, source=self.provider.name, text=result.text, payload=payload
+        )
 
-        return status
+        log.info(
+            "indexed",
+            component="ingest",
+            flow="ingest_file",
+            meta=self._file_log_meta(
+                fid, name, chunks=n, file_type=result.file_type, modified_time=mtime
+            ),
+        )
+        return "ok"
 
     def run_once(self, limiter: Limiter, stop_event: threading.Event) -> None:  # noqa: PLR0912, PLR0915
         file_filter = self._build_filter()
@@ -186,7 +191,7 @@ class IngestService:
             },
         )
 
-        ok = fail = skipped_unchanged = skipped_empty = 0
+        ok = fail = skipped_unchanged = skipped_empty = skipped_unsupported = skipped_stopped = 0
         completed = 0
 
         t0 = time.time()
@@ -233,6 +238,8 @@ class IngestService:
                     fail=fail,
                     skipped_unchanged=skipped_unchanged,
                     skipped_empty=skipped_empty,
+                    skipped_unsupported=skipped_unsupported,
+                    skipped_stopped=skipped_stopped,
                     workers=workers,
                     elapsed_ms=elapsed_ms,
                     in_flight=len(in_flight),
@@ -246,9 +253,6 @@ class IngestService:
                         break
 
                 while in_flight:
-                    if stop_event.is_set():
-                        break
-
                     done, _ = wait(in_flight, timeout=1.0, return_when=FIRST_COMPLETED)
                     if not done:
                         progress(force=False)
@@ -264,13 +268,19 @@ class IngestService:
                             status = fut.result()
                             if status == "ok":
                                 ok += 1
+                            elif status == "failed":
+                                fail += 1
                             elif status == "skipped_unchanged":
                                 skipped_unchanged += 1
+                            elif status == "skipped_unsupported":
+                                skipped_unsupported += 1
+                            elif status == "skipped_stopped":
+                                skipped_stopped += 1
                             else:
                                 skipped_empty += 1
                         except ShutdownRequested:
                             stop_event.set()
-                            skipped_empty += 1
+                            skipped_stopped += 1
                         except Exception:
                             fail += 1
                             log.exception(
@@ -308,6 +318,8 @@ class IngestService:
                     fail=fail,
                     skipped_unchanged=skipped_unchanged,
                     skipped_empty=skipped_empty,
+                    skipped_unsupported=skipped_unsupported,
+                    skipped_stopped=skipped_stopped,
                     workers=workers,
                     elapsed_ms=elapsed_ms,
                     stopped=stop_event.is_set(),
@@ -327,6 +339,8 @@ class IngestService:
                 fail=fail,
                 skipped_unchanged=skipped_unchanged,
                 skipped_empty=skipped_empty,
+                skipped_unsupported=skipped_unsupported,
+                skipped_stopped=skipped_stopped,
                 workers=workers,
                 elapsed_ms=elapsed_ms,
                 stopped=stop_event.is_set(),

@@ -63,6 +63,23 @@ def _file_meta(file_id: str, *, name: str = "file", mime: str = "text/plain") ->
     )
 
 
+def _install_fake_log(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, dict[str, Any]]]:
+    events: list[tuple[str, dict[str, Any]]] = []
+
+    class _FakeLog:
+        def debug(self, event: str, **kwargs: Any) -> None:
+            events.append((event, kwargs))
+
+        def info(self, event: str, **kwargs: Any) -> None:
+            events.append((event, kwargs))
+
+        def exception(self, event: str, **kwargs: Any) -> None:
+            events.append((event, kwargs))
+
+    monkeypatch.setattr("gdrive_assistant_bot.core.ingest.service.log", _FakeLog())
+    return events
+
+
 def test_ingest_one_file_skips_when_stop_event_set() -> None:
     store = FakeRAGStore()
     provider = _FakeProvider()
@@ -73,7 +90,7 @@ def test_ingest_one_file_skips_when_stop_event_set() -> None:
 
     status = service._ingest_one_file(_file_meta("1"), limiter, stop_event)
 
-    assert status == "skipped_empty"
+    assert status == "skipped_stopped"
     assert store.upserts == []
 
 
@@ -103,7 +120,7 @@ def test_ingest_one_file_skips_unsupported(monkeypatch: pytest.MonkeyPatch) -> N
 
     status = service._ingest_one_file(_file_meta("1"), limiter, stop_event)
 
-    assert status == "skipped_empty"
+    assert status == "skipped_unsupported"
     assert store.upserts == []
 
 
@@ -121,7 +138,7 @@ def test_ingest_one_file_handles_extractor_error(monkeypatch: pytest.MonkeyPatch
 
     status = service._ingest_one_file(_file_meta("1"), limiter, stop_event)
 
-    assert status == "skipped_empty"
+    assert status == "failed"
     assert store.upserts == []
 
 
@@ -202,3 +219,88 @@ def test_run_once_builds_filter_and_processes_files(monkeypatch: pytest.MonkeyPa
     assert file_filter.extensions == ["txt"]
     expected_upserts = 2
     assert len(store.upserts) == expected_upserts
+
+
+def test_run_once_counts_extractor_errors_as_failures(monkeypatch: pytest.MonkeyPatch) -> None:
+    files = [_file_meta("1")]
+    provider = _FakeProvider(files=files)
+    store = FakeRAGStore()
+    service = IngestService(store, provider)
+
+    events = _install_fake_log(monkeypatch)
+    monkeypatch.setattr("gdrive_assistant_bot.core.ingest.service.settings.INGEST_WORKERS", 1)
+    monkeypatch.setattr(
+        "gdrive_assistant_bot.core.ingest.service.get_extractor",
+        lambda _meta: _FakeExtractor(raise_error=RuntimeError("boom")),
+    )
+
+    limiter = _FakeLimiter()
+    stop_event = threading.Event()
+    service.run_once(limiter, stop_event)
+
+    assert store.upserts == []
+    assert any(event == "extraction_failed" for event, _ in events)
+
+    ingest_done = next(kwargs for event, kwargs in events if event == "ingest_done")
+    assert ingest_done["meta"]["completed"] == 1
+    assert ingest_done["meta"]["ok"] == 0
+    assert ingest_done["meta"]["fail"] == 1
+    assert ingest_done["meta"]["skipped_empty"] == 0
+    assert ingest_done["meta"]["skipped_unsupported"] == 0
+    assert ingest_done["meta"]["skipped_stopped"] == 0
+
+
+def test_run_once_counts_unsupported_files_separately(monkeypatch: pytest.MonkeyPatch) -> None:
+    files = [_file_meta("1")]
+    provider = _FakeProvider(files=files)
+    store = FakeRAGStore()
+    service = IngestService(store, provider)
+
+    events = _install_fake_log(monkeypatch)
+    monkeypatch.setattr("gdrive_assistant_bot.core.ingest.service.settings.INGEST_WORKERS", 1)
+    monkeypatch.setattr(
+        "gdrive_assistant_bot.core.ingest.service.get_extractor", lambda _meta: None
+    )
+
+    limiter = _FakeLimiter()
+    stop_event = threading.Event()
+    service.run_once(limiter, stop_event)
+
+    ingest_done = next(kwargs for event, kwargs in events if event == "ingest_done")
+    assert ingest_done["meta"]["completed"] == 1
+    assert ingest_done["meta"]["ok"] == 0
+    assert ingest_done["meta"]["fail"] == 0
+    assert ingest_done["meta"]["skipped_empty"] == 0
+    assert ingest_done["meta"]["skipped_unsupported"] == 1
+    assert ingest_done["meta"]["skipped_stopped"] == 0
+
+
+def test_run_once_drains_in_flight_results_after_stop_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    files = [_file_meta("1")]
+    provider = _FakeProvider(files=files)
+    store = FakeRAGStore()
+    service = IngestService(store, provider)
+
+    class _StopAfterExtract:
+        def extract(self, _file_meta: dict[str, Any], context: Any) -> ExtractedContent:
+            context.stop_event.set()
+            return ExtractedContent(text="hello", file_type="fake", metadata={})
+
+    events = _install_fake_log(monkeypatch)
+    monkeypatch.setattr("gdrive_assistant_bot.core.ingest.service.settings.INGEST_WORKERS", 1)
+    monkeypatch.setattr(
+        "gdrive_assistant_bot.core.ingest.service.get_extractor", lambda _meta: _StopAfterExtract()
+    )
+
+    limiter = _FakeLimiter()
+    stop_event = threading.Event()
+    service.run_once(limiter, stop_event)
+
+    assert store.upserts == []
+    ingest_done = next(kwargs for event, kwargs in events if event == "ingest_done")
+    assert ingest_done["meta"]["completed"] == 1
+    assert ingest_done["meta"]["ok"] == 0
+    assert ingest_done["meta"]["fail"] == 0
+    assert ingest_done["meta"]["skipped_stopped"] == 1

@@ -55,7 +55,9 @@ def test_list_children_paginates(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(gprovider, "execute_with_backoff", no_backoff)
 
-    files = provider._list_children(drive, "root", limiter=_FakeLimiter())
+    files = provider._list_children(
+        drive, "root", limiter=_FakeLimiter(), stop_event=threading.Event()
+    )
 
     assert files == [{"id": "1"}, {"id": "2"}]
     assert drive.calls == [None, "t1"]
@@ -77,7 +79,7 @@ def test_walk_recursive_skips_shortcuts_and_cycles(monkeypatch: pytest.MonkeyPat
         ],
     }
 
-    def fake_list_children(_drive, parent_id: str, _limiter):
+    def fake_list_children(_drive, parent_id: str, _limiter, _stop_event):
         return tree.get(parent_id, [])
 
     monkeypatch.setattr(provider, "_list_children", fake_list_children)
@@ -116,7 +118,7 @@ def test_list_all_accessible_files_filters_shortcuts(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(gprovider, "execute_with_backoff", no_backoff)
 
     files = provider._list_all_accessible_files(
-        drive, limiter=_FakeLimiter(), file_filter=file_filter
+        drive, limiter=_FakeLimiter(), file_filter=file_filter, stop_event=threading.Event()
     )
 
     assert [f["id"] for f in files] == ["file1"]
@@ -147,7 +149,7 @@ def test_list_all_accessible_files_includes_name_extension_query(
     monkeypatch.setattr(gprovider, "execute_with_backoff", no_backoff)
 
     files = provider._list_all_accessible_files(
-        drive, limiter=_FakeLimiter(), file_filter=file_filter
+        drive, limiter=_FakeLimiter(), file_filter=file_filter, stop_event=threading.Event()
     )
 
     assert [f["id"] for f in files] == ["file1"]
@@ -169,7 +171,9 @@ def test_list_files_initializes_drive_client_only(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(gprovider, "get_thread_client", fake_get_thread_client)
     monkeypatch.setattr(gprovider.settings, "STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE", True)
     monkeypatch.setattr(
-        provider, "_list_all_accessible_files", lambda _drive, _limiter, _file_filter: []
+        provider,
+        "_list_all_accessible_files",
+        lambda _drive, _limiter, _file_filter, _stop_event: [],
     )
 
     files = list(
@@ -178,3 +182,50 @@ def test_list_files_initializes_drive_client_only(monkeypatch: pytest.MonkeyPatc
 
     assert files == []
     assert calls == ["drive"]
+
+
+def test_list_children_respects_stop_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    provider = GoogleDriveProvider()
+    drive = _FakeGoogleDrive({None: {"files": [{"id": "1"}], "nextPageToken": None}})
+    stop_event = threading.Event()
+    stop_event.set()
+
+    calls = {"execute_with_backoff": 0}
+
+    def no_backoff(call, _limiter):
+        calls["execute_with_backoff"] += 1
+        return call()
+
+    monkeypatch.setattr(gprovider, "execute_with_backoff", no_backoff)
+
+    files = provider._list_children(drive, "root", limiter=_FakeLimiter(), stop_event=stop_event)
+
+    assert files == []
+    assert calls["execute_with_backoff"] == 0
+    assert drive.calls == []
+
+
+def test_list_all_accessible_files_respects_stop_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    provider = GoogleDriveProvider()
+    file_filter = FileTypeFilter(mime_types=["text/plain"], mime_prefixes=[], extensions=[])
+    drive = _FakeGoogleDrive(
+        {None: {"files": [{"id": "1", "mimeType": "text/plain"}], "nextPageToken": None}}
+    )
+    stop_event = threading.Event()
+    stop_event.set()
+
+    calls = {"execute_with_backoff": 0}
+
+    def no_backoff(call, _limiter):
+        calls["execute_with_backoff"] += 1
+        return call()
+
+    monkeypatch.setattr(gprovider, "execute_with_backoff", no_backoff)
+
+    files = provider._list_all_accessible_files(
+        drive, limiter=_FakeLimiter(), file_filter=file_filter, stop_event=stop_event
+    )
+
+    assert files == []
+    assert calls["execute_with_backoff"] == 0
+    assert drive.calls == []
