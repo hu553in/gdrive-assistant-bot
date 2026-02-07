@@ -24,7 +24,7 @@ class RAGStore:
         self.client = QdrantClient(url=str(settings.QDRANT_URL))
         self.embedder = TextEmbedding(model_name=settings.EMBED_MODEL)
 
-        dim = len(next(self.embedder.embed(["ping"])))
+        dim = len(next(iter(self.embedder.embed(["ping"]))))
         self._ensure_collection(dim)
 
     def _ensure_collection(self, vector_size: int) -> None:
@@ -101,7 +101,7 @@ class RAGStore:
 
     def search(self, query: str, top_k: int | None = None) -> list[SearchHit]:
         top_k = top_k or settings.TOP_K
-        qvec = next(self.embedder.embed([query]))
+        qvec = next(iter(self.embedder.embed([query])))
 
         hits = self.client.query_points(
             collection_name=settings.QDRANT_COLLECTION, query=qvec, limit=top_k, with_payload=True

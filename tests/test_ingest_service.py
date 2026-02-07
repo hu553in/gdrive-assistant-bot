@@ -3,12 +3,12 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
 from gdrive_assistant_bot.core.ingest.service import IngestService
-from gdrive_assistant_bot.extractors.base import ExtractedContent
+from gdrive_assistant_bot.extractors.base import ExtractedContent, ExtractionContext
 from gdrive_assistant_bot.providers.base import FileTypeFilter, StorageFileMeta
 from tests.fakes import FakeRAGStore
 
@@ -36,13 +36,14 @@ class _FakeProvider:
         self.list_filters: list[FileTypeFilter] = []
 
     def list_files(
-        self, file_filter: FileTypeFilter, _limiter: Any, _stop_event: threading.Event
+        self, file_filter: FileTypeFilter, limiter: Any, stop_event: Any
     ) -> list[StorageFileMeta]:
+        _ = limiter, stop_event
         self.list_filters.append(file_filter)
         return list(self.files)
 
-    def build_extraction_context(self, limiter: Any, stop_event: threading.Event) -> Any:
-        return SimpleNamespace(limiter=limiter, stop_event=stop_event)
+    def build_extraction_context(self, limiter: Any, stop_event: Any) -> ExtractionContext:
+        return cast(ExtractionContext, SimpleNamespace(limiter=limiter, stop_event=stop_event))
 
 
 class _FakeLimiter:

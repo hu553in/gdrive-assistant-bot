@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
-from typing import Any, Literal
+from typing import Any, Literal, Protocol, cast
 
 import structlog
 
@@ -14,10 +14,8 @@ from ...extractors.registry import (
     get_supported_mime_prefixes,
     get_supported_mimes,
 )
-from ...providers.base import FileTypeFilter, StorageFileMeta, StorageProvider
-from ...rag import RAGStore
+from ...providers.base import FileTypeFilter, Limiter, StorageFileMeta, StorageProvider
 from ...settings import settings
-from .limiter import RateLimiter
 
 log = structlog.get_logger("gdrive-assistant-bot.ingest")
 
@@ -25,10 +23,22 @@ log = structlog.get_logger("gdrive-assistant-bot.ingest")
 IngestStatus = Literal["ok", "skipped_unchanged", "skipped_empty"]
 
 
+class IngestStore(Protocol):
+    """Store contract required by ingest."""
+
+    def exists_file_mtime(self, file_id: str, modified_time: str) -> bool: ...
+
+    def delete_by_file_id(self, file_id: str) -> None: ...
+
+    def upsert_document(
+        self, *, doc_id: str, source: str, text: str, payload: dict[str, Any]
+    ) -> int: ...
+
+
 class IngestService:
     """Ingest pipeline that lists files, extracts content, and writes to the store."""
 
-    def __init__(self, store: RAGStore, provider: StorageProvider) -> None:
+    def __init__(self, store: IngestStore, provider: StorageProvider) -> None:
         self.store = store
         self.provider = provider
 
@@ -77,7 +87,7 @@ class IngestService:
         )
 
     def _ingest_one_file(
-        self, file_meta: StorageFileMeta, limiter: RateLimiter, stop_event: threading.Event
+        self, file_meta: StorageFileMeta, limiter: Limiter, stop_event: threading.Event
     ) -> IngestStatus:
         status: IngestStatus = "skipped_empty"
         if stop_event.is_set():
@@ -141,7 +151,7 @@ class IngestService:
 
         return status
 
-    def run_once(self, limiter: RateLimiter, stop_event: threading.Event) -> None:  # noqa: PLR0912, PLR0915
+    def run_once(self, limiter: Limiter, stop_event: threading.Event) -> None:  # noqa: PLR0912, PLR0915
         file_filter = self._build_filter()
         try:
             files = list(self.provider.list_files(file_filter, limiter, stop_event))
@@ -193,7 +203,9 @@ class IngestService:
                 f = next(it)
             except StopIteration:
                 return False
-            fut = executor.submit(self._ingest_one_file, f, limiter, stop_event)
+            fut = cast(
+                Future[IngestStatus], executor.submit(self._ingest_one_file, f, limiter, stop_event)
+            )
             in_flight.add(fut)
             fut_meta[fut] = f
             return True
@@ -322,7 +334,7 @@ class IngestService:
             ),
         )
 
-    def run_loop(self, limiter: RateLimiter, stop_event: threading.Event) -> None:
+    def run_loop(self, limiter: Limiter, stop_event: threading.Event) -> None:
         while not stop_event.is_set():
             self.run_once(limiter, stop_event)
             stop_event.wait(timeout=settings.INGEST_POLL_SECONDS)

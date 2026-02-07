@@ -5,7 +5,7 @@ import pytest
 from gdrive_assistant_bot.settings import Settings
 
 
-def _valid_settings(**kwargs: dict[str, Any]) -> Settings:
+def _valid_settings(**kwargs: Any) -> Settings:
     if (
         "STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE" not in kwargs
         and "STORAGE_GOOGLE_DRIVE_FOLDER_IDS" not in kwargs

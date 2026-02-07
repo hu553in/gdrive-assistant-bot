@@ -3,10 +3,11 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
+from gdrive_assistant_bot.extractors.base import ExtractionContext
 from gdrive_assistant_bot.extractors.office.powerpoint import (
     PPTX_MIME_TYPE,
     PptExtractor,
@@ -42,7 +43,9 @@ def test_pptx_extractor_extracts_text(monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _Context(settings=SimpleNamespace(OFFICE_MAX_FILE_SIZE_MB=10), payload=b"pptx")
     monkeypatch.setattr(extractor, "_extract_pptx", lambda _bytes: "slide text")
 
-    result = extractor.extract({"id": "pptx1", "mimeType": PPTX_MIME_TYPE, "size": "20"}, ctx)
+    result = extractor.extract(
+        {"id": "pptx1", "mimeType": PPTX_MIME_TYPE, "size": "20"}, cast(ExtractionContext, ctx)
+    )
 
     assert result.text == "slide text"
     assert result.file_type == "pptx"
@@ -104,7 +107,8 @@ def test_ppt_extractor_extracts_text(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(extractor, "_extract_ppt", lambda _bytes: "legacy slide")
 
     result = extractor.extract(
-        {"id": "ppt1", "mimeType": "application/vnd.ms-powerpoint", "size": "20"}, ctx
+        {"id": "ppt1", "mimeType": "application/vnd.ms-powerpoint", "size": "20"},
+        cast(ExtractionContext, ctx),
     )
 
     assert result.text == "legacy slide"

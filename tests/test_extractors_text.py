@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
+from gdrive_assistant_bot.extractors.base import ExtractionContext
 from gdrive_assistant_bot.extractors.text import TextBasedFileExtractor
 
 
@@ -40,7 +41,9 @@ def test_text_extractor_skips_on_size_limit() -> None:
     extractor = TextBasedFileExtractor()
     ctx = _Context(settings=SimpleNamespace(TEXT_MAX_FILE_SIZE_MB=1), payload=b"content")
 
-    result = extractor.extract({"id": "f1", "size": str(2 * 1024 * 1024)}, ctx)
+    result = extractor.extract(
+        {"id": "f1", "size": str(2 * 1024 * 1024)}, cast(ExtractionContext, ctx)
+    )
 
     assert result.text == ""
     assert result.metadata["skipped"] == "size_limit"
@@ -52,7 +55,7 @@ def test_text_extractor_extracts_and_normalizes_file_type() -> None:
 
     result = extractor.extract(
         {"id": "f1", "mimeType": "application/octet-stream", "fileExtension": "py", "size": "12"},
-        ctx,
+        cast(ExtractionContext, ctx),
     )
 
     assert result.text == "print('ok')"

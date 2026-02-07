@@ -131,7 +131,7 @@ class Settings(BaseSettings):
 
 
 try:
-    settings = Settings()
+    settings = Settings()  # ty: ignore[missing-argument]
 except Exception as exc:
     structlog.get_logger("gdrive-assistant-bot.settings").error(
         "settings_load_failed",

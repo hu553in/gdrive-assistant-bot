@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
+from gdrive_assistant_bot.extractors.base import ExtractionContext
 from gdrive_assistant_bot.extractors.google.slides import GoogleSlidesExtractor
 
 
@@ -88,7 +89,9 @@ def test_google_slides_extractor_extracts_text_from_shapes_tables_and_groups() -
     extractor = GoogleSlidesExtractor()
     ctx = _Context(slides=_FakeSlides(payload), settings=SimpleNamespace())
 
-    result = extractor.extract({"id": "slides1", "mimeType": extractor.MIME_TYPE}, ctx)
+    result = extractor.extract(
+        {"id": "slides1", "mimeType": extractor.MIME_TYPE}, cast(ExtractionContext, ctx)
+    )
 
     assert "=== SLIDE 1 ===" in result.text
     assert "Title line" in result.text

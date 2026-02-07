@@ -3,10 +3,11 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
+from gdrive_assistant_bot.extractors.base import ExtractionContext
 from gdrive_assistant_bot.extractors.office.word import DOCX_MIME_TYPE, DocExtractor, DocxExtractor
 
 
@@ -37,7 +38,9 @@ def test_docx_extractor_skips_on_size_limit() -> None:
     extractor = DocxExtractor()
     ctx = _Context(settings=SimpleNamespace(OFFICE_MAX_FILE_SIZE_MB=1), payload=b"docx")
 
-    result = extractor.extract({"id": "docx1", "size": str(2 * 1024 * 1024)}, ctx)
+    result = extractor.extract(
+        {"id": "docx1", "size": str(2 * 1024 * 1024)}, cast(ExtractionContext, ctx)
+    )
 
     assert result.text == ""
     assert result.metadata["skipped"] == "size_limit"
@@ -48,7 +51,9 @@ def test_docx_extractor_extracts_text(monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _Context(settings=SimpleNamespace(OFFICE_MAX_FILE_SIZE_MB=10), payload=b"docx")
     monkeypatch.setattr(extractor, "_extract_docx", lambda _bytes: "hello docx")
 
-    result = extractor.extract({"id": "docx1", "mimeType": DOCX_MIME_TYPE, "size": "16"}, ctx)
+    result = extractor.extract(
+        {"id": "docx1", "mimeType": DOCX_MIME_TYPE, "size": "16"}, cast(ExtractionContext, ctx)
+    )
 
     assert result.text == "hello docx"
     assert result.file_type == "docx"
@@ -59,7 +64,9 @@ def test_doc_extractor_extracts_text(monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _Context(settings=SimpleNamespace(OFFICE_MAX_FILE_SIZE_MB=10), payload=b"doc")
     monkeypatch.setattr(extractor, "_extract_doc", lambda _bytes: "hello doc")
 
-    result = extractor.extract({"id": "doc1", "mimeType": "application/msword", "size": "16"}, ctx)
+    result = extractor.extract(
+        {"id": "doc1", "mimeType": "application/msword", "size": "16"}, cast(ExtractionContext, ctx)
+    )
 
     assert result.text == "hello doc"
     assert result.file_type == "doc"

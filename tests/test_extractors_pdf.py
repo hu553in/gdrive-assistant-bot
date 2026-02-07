@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
+from gdrive_assistant_bot.extractors.base import ExtractionContext
 from gdrive_assistant_bot.extractors.pdf import PDFExtractor
 
 
@@ -41,7 +42,9 @@ def test_pdf_extractor_skips_on_size_limit() -> None:
         payload=b"%PDF",
     )
 
-    result = extractor.extract({"id": "pdf1", "size": str(2 * 1024 * 1024)}, ctx)
+    result = extractor.extract(
+        {"id": "pdf1", "size": str(2 * 1024 * 1024)}, cast(ExtractionContext, ctx)
+    )
 
     assert result.text == ""
     assert result.metadata["skipped"] == "size_limit"
@@ -58,7 +61,7 @@ def test_pdf_extractor_uses_selected_engine(monkeypatch: pytest.MonkeyPatch) -> 
 
     monkeypatch.setattr(extractor, "_extract_text_pdfplumber", lambda *_args, **_kwargs: "pdf text")
 
-    result = extractor.extract({"id": "pdf1", "size": "20"}, ctx)
+    result = extractor.extract({"id": "pdf1", "size": "20"}, cast(ExtractionContext, ctx))
 
     assert result.text == "pdf text"
     assert result.metadata["engine"] == "pdfplumber"

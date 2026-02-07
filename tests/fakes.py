@@ -65,7 +65,8 @@ class FakeRAGStore:
     upserts: list[dict[str, Any]] = field(default_factory=list)
     deletes: list[str] = field(default_factory=list)
 
-    def search(self, _query: str) -> list[Any]:
+    def search(self, query: str) -> list[Any]:
+        _ = query
         if self.search_error:
             raise self.search_error
         return list(self.hits)

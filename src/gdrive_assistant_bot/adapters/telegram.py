@@ -50,7 +50,11 @@ async def cmd_start(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_allowed(update):
         return
 
-    await update.message.reply_text(
+    msg = update.message
+    if not msg:
+        return
+
+    await msg.reply_text(
         "🤖 Я — бот-ассистент для Google Drive.\n\n"
         "Команды:\n\n"
         "– /ask <вопрос> — найти ответ в базе знаний\n"

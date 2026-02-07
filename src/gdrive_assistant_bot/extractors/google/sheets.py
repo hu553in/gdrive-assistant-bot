@@ -21,8 +21,12 @@ class GoogleSheetsExtractor(FileExtractor):
 
     def extract(self, file_meta: dict[str, Any], context: ExtractionContext) -> ExtractedContent:
         spreadsheet_id = file_meta["id"]
+        sheets = context.sheets
+        if sheets is None:
+            raise RuntimeError("Google Sheets API client is not initialized")
+
         spreadsheet = context.execute_with_backoff(
-            lambda: context.sheets.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+            lambda: sheets.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
         )
         sheet_infos = spreadsheet.get("sheets") or []
 
@@ -35,7 +39,7 @@ class GoogleSheetsExtractor(FileExtractor):
             rng = f"'{title}'!A1:ZZ{row_limit}"
             resp = context.execute_with_backoff(
                 lambda rng=rng: (
-                    context.sheets.spreadsheets()
+                    sheets.spreadsheets()
                     .values()
                     .get(spreadsheetId=spreadsheet_id, range=rng)
                     .execute()

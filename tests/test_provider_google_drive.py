@@ -7,6 +7,11 @@ from gdrive_assistant_bot.providers.google_drive import provider as gprovider
 from gdrive_assistant_bot.providers.google_drive.provider import GoogleDriveProvider
 
 
+class _FakeLimiter:
+    def acquire(self) -> None:
+        return
+
+
 def test_matches_filter_by_mime_and_prefix_and_extension() -> None:
     provider = GoogleDriveProvider()
     file_filter = FileTypeFilter(
@@ -90,9 +95,12 @@ def test_build_extraction_context_initializes_optional_clients_lazily(monkeypatc
     monkeypatch.setattr(gprovider.settings, "FILE_TYPE_GSHEETS_ENABLED", True)
     monkeypatch.setattr(gprovider.settings, "FILE_TYPE_GSLIDES_ENABLED", True)
 
-    ctx = provider.build_extraction_context(limiter=object(), stop_event=threading.Event())
+    ctx = provider.build_extraction_context(limiter=_FakeLimiter(), stop_event=threading.Event())
 
     assert calls == ["drive"]
+    assert ctx.docs is not None
+    assert ctx.sheets is not None
+    assert ctx.slides is not None
     assert ctx.docs.marker() == "docs"
     assert ctx.sheets.marker() == "sheets"
     assert ctx.slides.marker() == "slides"
@@ -112,7 +120,7 @@ def test_build_extraction_context_skips_disabled_optional_clients(monkeypatch) -
     monkeypatch.setattr(gprovider.settings, "FILE_TYPE_GSHEETS_ENABLED", False)
     monkeypatch.setattr(gprovider.settings, "FILE_TYPE_GSLIDES_ENABLED", False)
 
-    ctx = provider.build_extraction_context(limiter=object(), stop_event=threading.Event())
+    ctx = provider.build_extraction_context(limiter=_FakeLimiter(), stop_event=threading.Event())
 
     assert ctx.docs is None
     assert ctx.sheets is None

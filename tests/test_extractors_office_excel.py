@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
+from gdrive_assistant_bot.extractors.base import ExtractionContext
 from gdrive_assistant_bot.extractors.office.excel import XLSX_MIME_TYPE, XlsExtractor, XlsxExtractor
 
 
@@ -39,7 +40,9 @@ def test_xlsx_extractor_skips_on_size_limit() -> None:
     )
     ctx = _Context(settings=settings, payload=b"xlsx")
 
-    result = extractor.extract({"id": "xls1", "size": str(2 * 1024 * 1024)}, ctx)
+    result = extractor.extract(
+        {"id": "xls1", "size": str(2 * 1024 * 1024)}, cast(ExtractionContext, ctx)
+    )
 
     assert result.text == ""
     assert result.metadata["skipped"] == "size_limit"
@@ -53,7 +56,9 @@ def test_xlsx_extractor_extracts_text(monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _Context(settings=settings, payload=b"xlsx")
     monkeypatch.setattr(extractor, "_extract_xlsx", lambda *_args, **_kwargs: "sheet text")
 
-    result = extractor.extract({"id": "xls1", "mimeType": XLSX_MIME_TYPE, "size": "20"}, ctx)
+    result = extractor.extract(
+        {"id": "xls1", "mimeType": XLSX_MIME_TYPE, "size": "20"}, cast(ExtractionContext, ctx)
+    )
 
     assert result.text == "sheet text"
     assert result.file_type == "xlsx"
@@ -68,7 +73,8 @@ def test_xls_extractor_extracts_text(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(extractor, "_extract_xls", lambda *_args, **_kwargs: "legacy sheet")
 
     result = extractor.extract(
-        {"id": "xls1", "mimeType": "application/vnd.ms-excel", "size": "20"}, ctx
+        {"id": "xls1", "mimeType": "application/vnd.ms-excel", "size": "20"},
+        cast(ExtractionContext, ctx),
     )
 
     assert result.text == "legacy sheet"

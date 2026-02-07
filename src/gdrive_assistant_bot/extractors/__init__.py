@@ -9,11 +9,12 @@ from .pdf import PDFExtractor
 from .registry import register_extractor
 from .text import TextBasedFileExtractor
 
+_state: dict[str, bool] = {"initialized": False}
+
 
 def init_extractors() -> None:
     """Register built-in extractors once."""
-
-    if getattr(init_extractors, "_initialized", False):
+    if _state["initialized"]:
         return
 
     if settings.FILE_TYPE_GDOCS_ENABLED:
@@ -38,7 +39,7 @@ def init_extractors() -> None:
         register_extractor(PptxExtractor())
     if settings.FILE_TYPE_PPT_ENABLED:
         register_extractor(PptExtractor())
-    init_extractors._initialized = True
+    _state["initialized"] = True
 
 
 __all__ = []

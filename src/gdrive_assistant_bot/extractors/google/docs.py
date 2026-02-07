@@ -21,8 +21,12 @@ class GoogleDocsExtractor(FileExtractor):
 
     def extract(self, file_meta: dict[str, Any], context: ExtractionContext) -> ExtractedContent:
         doc_id = file_meta["id"]
+        docs = context.docs
+        if docs is None:
+            raise RuntimeError("Google Docs API client is not initialized")
+
         doc = context.execute_with_backoff(
-            lambda: context.docs.documents().get(documentId=doc_id).execute()
+            lambda: docs.documents().get(documentId=doc_id).execute()
         )
         body = (doc.get("body") or {}).get("content") or []
 

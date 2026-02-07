@@ -14,6 +14,11 @@ from gdrive_assistant_bot.providers.google_drive.provider import (
 )
 
 
+class _FakeLimiter:
+    def acquire(self) -> None:
+        return
+
+
 class _FakeGoogleDrive:
     def __init__(self, pages: dict[str | None, dict[str, Any]]) -> None:
         self.pages = pages
@@ -50,7 +55,7 @@ def test_list_children_paginates(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(gprovider, "execute_with_backoff", no_backoff)
 
-    files = provider._list_children(drive, "root", limiter=object())
+    files = provider._list_children(drive, "root", limiter=_FakeLimiter())
 
     assert files == [{"id": "1"}, {"id": "2"}]
     assert drive.calls == [None, "t1"]
@@ -81,7 +86,7 @@ def test_walk_recursive_skips_shortcuts_and_cycles(monkeypatch: pytest.MonkeyPat
         provider._walk_recursive(
             drive=None,
             root_ids=["root"],
-            limiter=object(),
+            limiter=_FakeLimiter(),
             stop_event=threading.Event(),
             file_filter=file_filter,
         )
@@ -110,7 +115,9 @@ def test_list_all_accessible_files_filters_shortcuts(monkeypatch: pytest.MonkeyP
 
     monkeypatch.setattr(gprovider, "execute_with_backoff", no_backoff)
 
-    files = provider._list_all_accessible_files(drive, limiter=object(), file_filter=file_filter)
+    files = provider._list_all_accessible_files(
+        drive, limiter=_FakeLimiter(), file_filter=file_filter
+    )
 
     assert [f["id"] for f in files] == ["file1"]
     assert drive.qs
@@ -139,7 +146,9 @@ def test_list_all_accessible_files_includes_name_extension_query(
 
     monkeypatch.setattr(gprovider, "execute_with_backoff", no_backoff)
 
-    files = provider._list_all_accessible_files(drive, limiter=object(), file_filter=file_filter)
+    files = provider._list_all_accessible_files(
+        drive, limiter=_FakeLimiter(), file_filter=file_filter
+    )
 
     assert [f["id"] for f in files] == ["file1"]
     assert drive.qs
@@ -163,7 +172,9 @@ def test_list_files_initializes_drive_client_only(monkeypatch: pytest.MonkeyPatc
         provider, "_list_all_accessible_files", lambda _drive, _limiter, _file_filter: []
     )
 
-    files = list(provider.list_files(file_filter, limiter=object(), stop_event=threading.Event()))
+    files = list(
+        provider.list_files(file_filter, limiter=_FakeLimiter(), stop_event=threading.Event())
+    )
 
     assert files == []
     assert calls == ["drive"]

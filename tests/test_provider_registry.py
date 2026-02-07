@@ -1,6 +1,9 @@
+from typing import Any
+
 import pytest
 
 from gdrive_assistant_bot.providers import init_providers, registry
+from gdrive_assistant_bot.providers.base import FileTypeFilter
 from gdrive_assistant_bot.providers.registry import get_provider, list_providers, register_provider
 
 _ALL_PROVIDERS = ["google_drive"]
@@ -17,6 +20,14 @@ def test_register_provider_requires_unique_non_empty_name(monkeypatch: pytest.Mo
     class Provider:
         name = "example"
 
+        def list_files(self, file_filter: FileTypeFilter, limiter: Any, stop_event: Any):
+            _ = file_filter, limiter, stop_event
+            return []
+
+        def build_extraction_context(self, limiter: Any, stop_event: Any) -> Any:
+            _ = limiter, stop_event
+            return object()
+
     register_provider(Provider())
     assert list(list_providers()) == ["example"]
 
@@ -25,6 +36,14 @@ def test_register_provider_requires_unique_non_empty_name(monkeypatch: pytest.Mo
 
     class EmptyProvider:
         name = " "
+
+        def list_files(self, file_filter: FileTypeFilter, limiter: Any, stop_event: Any):
+            _ = file_filter, limiter, stop_event
+            return []
+
+        def build_extraction_context(self, limiter: Any, stop_event: Any) -> Any:
+            _ = limiter, stop_event
+            return object()
 
     with pytest.raises(ValueError):
         register_provider(EmptyProvider())

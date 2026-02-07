@@ -37,8 +37,7 @@ test:
 	.venv/bin/pytest
 
 check_types:
-    # always exit with 0 until all existing type errors are fixed
-	.venv/bin/ty check --exit-zero .
+	.venv/bin/ty check .
 
 check:
 	.venv/bin/prek --all-files --hook-stage pre-commit

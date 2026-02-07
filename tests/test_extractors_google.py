@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
+from gdrive_assistant_bot.extractors.base import ExtractionContext
 from gdrive_assistant_bot.extractors.google.docs import GoogleDocsExtractor
 from gdrive_assistant_bot.extractors.google.sheets import GoogleSheetsExtractor
 
@@ -90,7 +91,9 @@ def test_google_docs_extractor_extracts_text() -> None:
     }
     ctx = _Context(docs=_FakeDocs(doc), sheets=None, settings=SimpleNamespace())
 
-    result = extractor.extract({"id": "doc1", "mimeType": extractor.MIME_TYPE}, ctx)
+    result = extractor.extract(
+        {"id": "doc1", "mimeType": extractor.MIME_TYPE}, cast(ExtractionContext, ctx)
+    )
 
     assert result.text == "HelloWorld"
     assert result.file_type == "gdoc"
@@ -105,7 +108,9 @@ def test_google_sheets_extractor_extracts_tables() -> None:
     settings = SimpleNamespace(STORAGE_GOOGLE_DRIVE_MAX_ROWS_PER_SHEET=2)
     ctx = _Context(docs=None, sheets=_FakeSheets(spreadsheet, values), settings=settings)
 
-    result = extractor.extract({"id": "sheet1", "mimeType": extractor.MIME_TYPE}, ctx)
+    result = extractor.extract(
+        {"id": "sheet1", "mimeType": extractor.MIME_TYPE}, cast(ExtractionContext, ctx)
+    )
 
     assert "=== SHEET: Sheet1 ===" in result.text
     assert "A\tB" in result.text

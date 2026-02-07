@@ -26,7 +26,8 @@ class _FakeExtractor(FileExtractor):
     def mime_prefixes(self) -> list[str]:
         return list(self.prefixes)
 
-    def can_extract(self, _file_meta: dict[str, Any]) -> bool:
+    def can_extract(self, file_meta: dict[str, Any]) -> bool:
+        _ = file_meta
         return self.can_extract_result
 
     def extract(self, file_meta: dict[str, Any], context: Any) -> Any:

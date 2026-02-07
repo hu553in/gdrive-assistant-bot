@@ -23,8 +23,12 @@ class GoogleSlidesExtractor(FileExtractor):
 
     def extract(self, file_meta: dict[str, Any], context: ExtractionContext) -> ExtractedContent:
         file_id = file_meta["id"]
+        slides_client = context.slides
+        if slides_client is None:
+            raise RuntimeError("Google Slides API client is not initialized")
+
         presentation = context.execute_with_backoff(
-            lambda: context.slides.presentations().get(presentationId=file_id).execute()
+            lambda: slides_client.presentations().get(presentationId=file_id).execute()
         )
 
         slides = presentation.get("slides") or []

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from typing import Any
 
 import structlog
@@ -31,6 +32,20 @@ class _LazyGoogleClient:
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._resolve(), name)
+
+
+@dataclass(slots=True)
+class _GoogleDriveExtractionContext:
+    limiter: Limiter
+    stop_event: StopEvent
+    settings: Any
+    drive: Any | None
+    docs: Any | None
+    sheets: Any | None
+    slides: Any | None
+    execute_with_backoff: Callable[[Callable[[], Any]], Any]
+    download_binary: Callable[[str], bytes]
+    download_export: Callable[[str, str], bytes]
 
 
 class GoogleDriveProvider(StorageProvider):
@@ -88,36 +103,35 @@ class GoogleDriveProvider(StorageProvider):
     ) -> ExtractionContext:
         service_account_json = settings.STORAGE_GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON
         drive = get_thread_client(service_account_json, "drive")
-
-        class Context:
-            pass
-
-        ctx = Context()
-        ctx.limiter = limiter
-        ctx.stop_event = stop_event
-        ctx.settings = settings
-        ctx.drive = drive
-        ctx.docs = (
+        docs = (
             _LazyGoogleClient(lambda: get_thread_client(service_account_json, "docs"))
             if settings.FILE_TYPE_GDOCS_ENABLED
             else None
         )
-        ctx.sheets = (
+        sheets = (
             _LazyGoogleClient(lambda: get_thread_client(service_account_json, "sheets"))
             if settings.FILE_TYPE_GSHEETS_ENABLED
             else None
         )
-        ctx.slides = (
+        slides = (
             _LazyGoogleClient(lambda: get_thread_client(service_account_json, "slides"))
             if settings.FILE_TYPE_GSLIDES_ENABLED
             else None
         )
-        ctx.execute_with_backoff = lambda call: execute_with_backoff(call, limiter)
-        ctx.download_binary = lambda file_id: download_binary(drive, file_id, limiter, stop_event)
-        ctx.download_export = lambda file_id, mime: download_export(
-            drive, file_id, mime, limiter, stop_event
+        return _GoogleDriveExtractionContext(
+            limiter=limiter,
+            stop_event=stop_event,
+            settings=settings,
+            drive=drive,
+            docs=docs,
+            sheets=sheets,
+            slides=slides,
+            execute_with_backoff=lambda call: execute_with_backoff(call, limiter),
+            download_binary=lambda file_id: download_binary(drive, file_id, limiter, stop_event),
+            download_export=lambda file_id, mime: download_export(
+                drive, file_id, mime, limiter, stop_event
+            ),
         )
-        return ctx
 
     @staticmethod
     def _to_storage_meta(file_meta: dict[str, Any]) -> StorageFileMeta:

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
-from openai import OpenAI, OpenAIError
+from openai import OpenAIError
 
-from ...rag import RAGStore
 from ...settings import settings
 
 # Kinds of answers returned by QAService.
@@ -44,10 +43,22 @@ class LLMError(RuntimeError):
         self.context_chars = context_chars
 
 
+class QAStore(Protocol):
+    """Store contract required by QAService."""
+
+    def search(self, query: str) -> list[Any]: ...
+
+    def build_context(self, hits: list[Any], max_chars: int) -> str: ...
+
+    def upsert_document(
+        self, *, doc_id: str, source: str, text: str, payload: dict[str, Any]
+    ) -> int: ...
+
+
 class QAService:
     """Query/ingest service used by the Telegram bot."""
 
-    def __init__(self, store: RAGStore, llm: OpenAI | None) -> None:
+    def __init__(self, store: QAStore, llm: Any | None) -> None:
         self.store = store
         self.llm = llm
 
