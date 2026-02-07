@@ -29,7 +29,7 @@ class _FakeExtractor(FileExtractor):
     def can_extract(self, _file_meta: dict[str, Any]) -> bool:
         return self.can_extract_result
 
-    def extract(self, file_meta: dict[str, Any], context: Any) -> Any:  # pragma: no cover - unused
+    def extract(self, file_meta: dict[str, Any], context: Any) -> Any:
         raise NotImplementedError
 
 

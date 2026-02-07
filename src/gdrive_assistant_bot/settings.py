@@ -9,6 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 _StorageBackend = Literal["google_drive"]
 _LogLevel = Literal["CRITICAL", "FATAL", "ERROR", "WARN", "WARNING", "INFO", "DEBUG", "NOTSET"]
 _IngestMode = Literal["once", "loop"]
+_PdfExtractionEngine = Literal["pypdf", "pdfplumber"]
 
 
 class Settings(BaseSettings):
@@ -40,8 +41,29 @@ class Settings(BaseSettings):
     STORAGE_GOOGLE_DRIVE_API_RPS: float = Field(default=8.0, gt=0.0, le=1000.0)
     STORAGE_GOOGLE_DRIVE_API_BURST: float = Field(default=16.0, ge=1, le=10000.0)
 
+    # File type feature toggles
+    FILE_TYPE_GDOCS_ENABLED: bool = True
+    FILE_TYPE_GSHEETS_ENABLED: bool = True
+    FILE_TYPE_GSLIDES_ENABLED: bool = True
+    FILE_TYPE_TEXT_BASED_ENABLED: bool = True
+    FILE_TYPE_PDF_ENABLED: bool = True
+    FILE_TYPE_DOCX_ENABLED: bool = True
+    FILE_TYPE_DOC_ENABLED: bool = True
+    FILE_TYPE_XLSX_ENABLED: bool = True
+    FILE_TYPE_XLS_ENABLED: bool = True
+    FILE_TYPE_PPTX_ENABLED: bool = True
+    FILE_TYPE_PPT_ENABLED: bool = True
+
+    # Extractor limits
+    TEXT_MAX_FILE_SIZE_MB: int = Field(default=10, ge=1, le=1024)
+    PDF_MAX_PAGES: int = Field(default=100, ge=1, le=10000)
+    PDF_MAX_FILE_SIZE_MB: int = Field(default=50, ge=1, le=1024)
+    PDF_EXTRACTION_ENGINE: _PdfExtractionEngine = "pypdf"
+    OFFICE_MAX_FILE_SIZE_MB: int = Field(default=50, ge=1, le=1024)
+    EXCEL_MAX_SHEETS: int = Field(default=50, ge=1, le=1000)
+
     # Qdrant
-    QDRANT_URL: HttpUrl = Field(default=HttpUrl("http://qdrant:6333"))
+    QDRANT_URL: HttpUrl = HttpUrl("http://qdrant:6333")
     QDRANT_COLLECTION: str = "docs"
 
     # Embeddings
@@ -55,9 +77,9 @@ class Settings(BaseSettings):
     MAX_CONTEXT_CHARS: int = Field(default=6000, ge=500, le=100_000)
 
     # Optional LLM (OpenAI-compatible)
-    LLM_BASE_URL: HttpUrl | None = None
+    LLM_BASE_URL: HttpUrl = HttpUrl("https://api.openai.com/v1")
     LLM_API_KEY: str | None = Field(default=None, exclude=True)
-    LLM_MODEL: str | None = None
+    LLM_MODEL: str = "gpt-4o-mini"
     LLM_SYSTEM_PROMPT: str = (
         "You are an assistant for a private internal knowledge base. "
         "You must answer questions strictly and exclusively based on the provided context. "
@@ -102,7 +124,7 @@ class Settings(BaseSettings):
         return self
 
     def is_llm_enabled(self) -> bool:
-        return bool(self.LLM_BASE_URL and self.LLM_API_KEY and self.LLM_MODEL)
+        return bool(self.LLM_API_KEY)
 
     def is_telegram_private_mode(self) -> bool:
         return bool(self.TELEGRAM_ALLOWED_USER_IDS or self.TELEGRAM_ALLOWED_GROUP_IDS)

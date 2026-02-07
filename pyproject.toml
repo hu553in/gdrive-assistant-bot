@@ -10,30 +10,37 @@ dependencies = [
   "google-api-python-client>=2.189.0",
   "google-auth-httplib2>=0.3.0",
   "google-auth>=2.48.0",
-  "openai>=2.16.0",
+  "openai>=2.17.0",
+  "openpyxl>=3.1.5",
+  "pdfplumber>=0.11.9",
   "pydantic-settings>=2.12.0",
   "pydantic>=2.12.5",
+  "pypdf>=6.6.2",
+  "python-docx>=1.2.0",
+  "python-pptx>=1.0.2",
   "python-telegram-bot>=22.6",
   "qdrant-client>=1.16.2",
   "structlog>=25.5.0",
+  "xlrd>=2.0.2",
 ]
 
 [dependency-groups]
 dev = [
-  "prek>=0.3.1",
-  "pysentry-rs>=0.4.0",
+  "prek>=0.3.2",
+  "pysentry-rs>=0.4.1",
   "pytest-cov>=7.0.0",
   "pytest-xdist>=3.8.0",
   "pytest>=9.0.2",
   "ruff>=0.15.0",
   "testcontainers[qdrant]>=4.14.1",
+  "ty>=0.0.15",
 ]
 
 [tool.uv]
 link-mode = "copy"
 
 [tool.pytest.ini_options]
-addopts = "-n=logical --cov=src --cov-report=term-missing --cov-fail-under=80"
+addopts = "-n=logical --cov=src --cov-report=term-missing --cov-fail-under=85"
 markers = [
   "integration: requires Docker/Testcontainers and is skipped if unavailable",
 ]

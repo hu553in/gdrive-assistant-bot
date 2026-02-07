@@ -38,13 +38,8 @@ LLM usage is optional. Without it, the bot returns the most relevant text fragme
 
 ## Supported file types
 
-Currently supported:
-
 - Google Docs
 - Google Sheets
-
-Planned:
-
 - Google Slides
 - Text-based files (configuration files, source code, plain text)
 - PDF documents
@@ -115,12 +110,29 @@ flowchart LR
   - Download its JSON key
   - Place it at `secrets/google_sa.json`
   - Share target Google Drive folders with the service account email
+  - Enable Google Drive API, Google Docs API, Google Sheets API, and Google Slides API
 3. Set required environment variables:
   - `TELEGRAM_BOT_TOKEN`
   - `STORAGE_BACKEND=google_drive`
   - Either `STORAGE_GOOGLE_DRIVE_FOLDER_IDS` (JSON array) or `STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE=true`
 4. Start services: `make start`
 5. Stop everything: `make stop`
+
+### Google APIs and scopes
+
+The bot uses these APIs during ingestion:
+
+- Google Drive API: list files, export Google-native docs, download binaries
+- Google Docs API: extract Google Docs text
+- Google Sheets API: extract Google Sheets tables
+- Google Slides API: extract Google Slides text
+
+Service-account scopes requested by the app:
+
+- `https://www.googleapis.com/auth/drive.readonly`
+- `https://www.googleapis.com/auth/documents.readonly`
+- `https://www.googleapis.com/auth/spreadsheets.readonly`
+- `https://www.googleapis.com/auth/presentations.readonly`
 
 ---
 
@@ -172,15 +184,32 @@ All settings are defined via `.env`.
 | `STORAGE_GOOGLE_DRIVE_BACKOFF_MAX_DELAY_SECONDS`  | no          | `30.0`                                                        | Backoff max delay                                  |
 | `STORAGE_GOOGLE_DRIVE_API_RPS`                    | no          | `8.0`                                                         | Google API rate limit (tokens/sec)                 |
 | `STORAGE_GOOGLE_DRIVE_API_BURST`                  | no          | `16.0`                                                        | Google API burst size (tokens)                     |
+| `FILE_TYPE_GDOCS_ENABLED`                         | no          | `true`                                                        | Enable Google Docs ingestion                       |
+| `FILE_TYPE_GSHEETS_ENABLED`                       | no          | `true`                                                        | Enable Google Sheets ingestion                     |
+| `FILE_TYPE_GSLIDES_ENABLED`                       | no          | `true`                                                        | Enable Google Slides ingestion                     |
+| `FILE_TYPE_TEXT_BASED_ENABLED`                    | no          | `true`                                                        | Enable text-based files ingestion                  |
+| `FILE_TYPE_PDF_ENABLED`                           | no          | `true`                                                        | Enable PDF ingestion                               |
+| `FILE_TYPE_DOCX_ENABLED`                          | no          | `true`                                                        | Enable DOCX ingestion                              |
+| `FILE_TYPE_DOC_ENABLED`                           | no          | `true`                                                        | Enable DOC ingestion                               |
+| `FILE_TYPE_XLSX_ENABLED`                          | no          | `true`                                                        | Enable XLSX ingestion                              |
+| `FILE_TYPE_XLS_ENABLED`                           | no          | `true`                                                        | Enable XLS ingestion                               |
+| `FILE_TYPE_PPTX_ENABLED`                          | no          | `true`                                                        | Enable PPTX ingestion                              |
+| `FILE_TYPE_PPT_ENABLED`                           | no          | `true`                                                        | Enable PPT ingestion                               |
+| `TEXT_MAX_FILE_SIZE_MB`                           | no          | `10`                                                          | Max text-based file size (MB)                      |
+| `PDF_MAX_PAGES`                                   | no          | `100`                                                         | Max extracted PDF pages                            |
+| `PDF_MAX_FILE_SIZE_MB`                            | no          | `50`                                                          | Max PDF file size (MB)                             |
+| `PDF_EXTRACTION_ENGINE`                           | no          | `pypdf`                                                       | `pypdf` or `pdfplumber` (both installed)           |
+| `OFFICE_MAX_FILE_SIZE_MB`                         | no          | `50`                                                          | Max Office file size (MB)                          |
+| `EXCEL_MAX_SHEETS`                                | no          | `50`                                                          | Max sheets for XLS/XLSX extraction                 |
 | `QDRANT_URL`                                      | no          | `http://qdrant:6333`                                          | Qdrant endpoint                                    |
 | `QDRANT_COLLECTION`                               | no          | `docs`                                                        | Collection name                                    |
 | `EMBED_MODEL`                                     | no          | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | fastembed model                                    |
 | `HF_TOKEN`                                        | no          | –                                                             | HuggingFace token for model downloads              |
 | `TOP_K`                                           | no          | `6`                                                           | Retrieved chunks per query                         |
 | `MAX_CONTEXT_CHARS`                               | no          | `6000`                                                        | Context size limit                                 |
-| `LLM_BASE_URL`                                    | no          | –                                                             | OpenAI-compatible API base                         |
+| `LLM_BASE_URL`                                    | no          | `https://api.openai.com/v1`                                   | OpenAI-compatible API base                         |
 | `LLM_API_KEY`                                     | no          | –                                                             | LLM API key                                        |
-| `LLM_MODEL`                                       | no          | –                                                             | LLM model name                                     |
+| `LLM_MODEL`                                       | no          | `gpt-4o-mini`                                                 | LLM model name                                     |
 | `LLM_SYSTEM_PROMPT`                               | no          | Built-in prompt                                               | LLM system prompt                                  |
 | `INGEST_MODE`                                     | no          | `loop`                                                        | `once` or `loop`                                   |
 | `INGEST_POLL_SECONDS`                             | no          | `600`                                                         | Poll interval                                      |

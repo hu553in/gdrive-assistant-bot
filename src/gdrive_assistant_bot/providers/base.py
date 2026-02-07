@@ -41,7 +41,7 @@ class StorageFileMeta:
     raw: dict[str, Any]
 
     def as_extractor_meta(self) -> dict[str, Any]:
-        """Return a dict matching extractor expectations (Drive-style keys)."""
+        """Return a dict matching extractor expectations (Google Drive-style keys)."""
 
         data = dict(self.raw or {})
         data.update(

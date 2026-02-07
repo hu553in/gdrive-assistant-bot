@@ -50,6 +50,7 @@ class ExtractionContext(Protocol):
     drive: Any | None
     docs: Any | None
     sheets: Any | None
+    slides: Any | None
 
     execute_with_backoff: Any
     download_binary: Any

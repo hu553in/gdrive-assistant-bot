@@ -22,6 +22,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
+        catdoc \
         wget
 
 RUN useradd -m app

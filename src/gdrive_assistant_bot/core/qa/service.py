@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from openai import OpenAI, OpenAIError
 
 from ...rag import RAGStore
 from ...settings import settings
-from .models import QAAnswerKind
+
+# Kinds of answers returned by QAService.
+QAAnswerKind = Literal["empty", "fragments", "llm"]
 
 
 @dataclass(slots=True)

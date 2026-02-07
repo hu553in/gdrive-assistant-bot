@@ -36,5 +36,15 @@ lint:
 test:
 	.venv/bin/pytest
 
+check_types:
+    # always exit with 0 until all existing type errors are fixed
+	.venv/bin/ty check --exit-zero .
+
 check:
 	.venv/bin/prek --all-files --hook-stage pre-commit
+
+logs_bot:
+	docker compose $(COMPOSE_FILES) logs -f bot
+
+logs_ingest:
+	docker compose $(COMPOSE_FILES) logs -f ingest

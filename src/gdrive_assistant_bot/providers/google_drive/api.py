@@ -85,7 +85,7 @@ def download_export(
 
 
 def download_binary(drive: Any, file_id: str, limiter: Limiter, stop_event: StopEvent) -> bytes:
-    """Download a binary file by Drive file ID."""
+    """Download a binary file by Google Drive file ID."""
 
     request = drive.files().get_media(fileId=file_id)
     return download_request(request, limiter, stop_event)

@@ -26,7 +26,7 @@ def qdrant_container():
     try:
         with QdrantContainer() as container:
             yield container
-    except Exception as exc:  # pragma: no cover - depends on docker availability
+    except Exception as exc:
         pytest.skip(f"Qdrant container unavailable: {exc}")
 
 

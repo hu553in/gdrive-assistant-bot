@@ -10,8 +10,8 @@ from uuid import uuid4
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-COMPOSE_BASE = [
+_ROOT = Path(__file__).resolve().parents[1]
+_COMPOSE_BASE = [
     "docker",
     "compose",
     "-f",
@@ -19,7 +19,7 @@ COMPOSE_BASE = [
     "-f",
     "docker-compose.override.dev.yml",
 ]
-ENV_FILE_TEMPLATE = """\
+_ENV_FILE_TEMPLATE = """\
 TELEGRAM_BOT_TOKEN=example
 STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE=true
 SMOKE_TEST_SECONDS={seconds}
@@ -42,10 +42,10 @@ def _run(cmd: list[str], *, cwd: Path, timeout: int = 300) -> None:
 
 def _wait_for_health(project: str, service: str, url: str) -> None:
     deadline = time.time() + 60
-    cmd = [*COMPOSE_BASE, "-p", project, "exec", "-T", service, "wget", "-qO-", url]
+    cmd = [*_COMPOSE_BASE, "-p", project, "exec", "-T", service, "wget", "-qO-", url]
     while time.time() < deadline:
         try:
-            _run(cmd, cwd=ROOT, timeout=20)
+            _run(cmd, cwd=_ROOT, timeout=20)
             return
         except subprocess.SubprocessError:
             time.sleep(2)
@@ -68,14 +68,14 @@ def test_docker_smoke_bot_and_ingest() -> None:
         os.environ["GOOGLE_SA_FILE"] = str(google_sa_path)
 
         env_path = tmpdir_path / ".env"
-        env_path.write_text(ENV_FILE_TEMPLATE.format(seconds=seconds))
+        env_path.write_text(_ENV_FILE_TEMPLATE.format(seconds=seconds))
         os.environ["ENV_FILE"] = str(env_path)
 
-        cmd = [*COMPOSE_BASE, "-p", project]
+        cmd = [*_COMPOSE_BASE, "-p", project]
 
         try:
-            _run([*cmd, "up", "-d", "--build", "--wait"], cwd=ROOT, timeout=900)
+            _run([*cmd, "up", "-d", "--build", "--wait"], cwd=_ROOT, timeout=900)
             _wait_for_health(project, "bot", "http://localhost:8080/healthz")
             _wait_for_health(project, "ingest", "http://localhost:8081/healthz")
         finally:
-            _run([*cmd, "down", "-v", "--remove-orphans"], cwd=ROOT, timeout=300)
+            _run([*cmd, "down", "-v", "--remove-orphans"], cwd=_ROOT, timeout=300)

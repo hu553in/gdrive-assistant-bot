@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
-from typing import Any
+from typing import Any, Literal
 
 import structlog
 
@@ -18,9 +18,11 @@ from ...providers.base import FileTypeFilter, StorageFileMeta, StorageProvider
 from ...rag import RAGStore
 from ...settings import settings
 from .limiter import RateLimiter
-from .models import IngestStatus
 
 log = structlog.get_logger("gdrive-assistant-bot.ingest")
+
+# Status codes returned by IngestService.
+IngestStatus = Literal["ok", "skipped_unchanged", "skipped_empty"]
 
 
 class IngestService:

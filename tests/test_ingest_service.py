@@ -46,7 +46,7 @@ class _FakeProvider:
 
 
 class _FakeLimiter:
-    def acquire(self) -> None:  # pragma: no cover - just protocol compliance
+    def acquire(self) -> None:
         return
 
 

@@ -21,6 +21,8 @@ def test_literal_types_validated() -> None:
         _valid_settings(LOG_LEVEL="INVALID")
     with pytest.raises(ValueError):
         _valid_settings(INGEST_MODE="INVALID")
+    with pytest.raises(ValueError):
+        _valid_settings(PDF_EXTRACTION_ENGINE="INVALID")
 
 
 def test_google_drive_scope_validated() -> None:
@@ -46,27 +48,27 @@ def test_google_drive_scope_valid_when_folder_ids_set() -> None:
     assert settings.STORAGE_GOOGLE_DRIVE_FOLDER_IDS == ["id1"]
 
 
-def test_llm_enabled_requires_all_fields() -> None:
-    base_url = "http://llm.local"
-    assert (
-        _valid_settings(LLM_BASE_URL=base_url, LLM_API_KEY=None, LLM_MODEL="gpt").is_llm_enabled()
-        is False
-    )
-    assert (
-        _valid_settings(LLM_BASE_URL=None, LLM_API_KEY="key", LLM_MODEL="gpt").is_llm_enabled()
-        is False
-    )
-    assert (
-        _valid_settings(LLM_BASE_URL=base_url, LLM_API_KEY="key", LLM_MODEL=None).is_llm_enabled()
-        is False
-    )
-    assert (
-        _valid_settings(LLM_BASE_URL=base_url, LLM_API_KEY="key", LLM_MODEL="gpt").is_llm_enabled()
-        is True
-    )
+def test_llm_enabled_requires_api_key() -> None:
+    assert _valid_settings(LLM_API_KEY=None).is_llm_enabled() is False
+    assert _valid_settings(LLM_API_KEY="key").is_llm_enabled() is True
 
 
 def test_telegram_private_mode_flags() -> None:
     assert _valid_settings().is_telegram_private_mode() is False
     assert _valid_settings(TELEGRAM_ALLOWED_USER_IDS=[1]).is_telegram_private_mode() is True
     assert _valid_settings(TELEGRAM_ALLOWED_GROUP_IDS=[2]).is_telegram_private_mode() is True
+
+
+def test_file_type_feature_toggles_enabled_by_default() -> None:
+    settings = _valid_settings()
+    assert settings.FILE_TYPE_GDOCS_ENABLED is True
+    assert settings.FILE_TYPE_GSHEETS_ENABLED is True
+    assert settings.FILE_TYPE_GSLIDES_ENABLED is True
+    assert settings.FILE_TYPE_TEXT_BASED_ENABLED is True
+    assert settings.FILE_TYPE_PDF_ENABLED is True
+    assert settings.FILE_TYPE_DOCX_ENABLED is True
+    assert settings.FILE_TYPE_DOC_ENABLED is True
+    assert settings.FILE_TYPE_XLSX_ENABLED is True
+    assert settings.FILE_TYPE_XLS_ENABLED is True
+    assert settings.FILE_TYPE_PPTX_ENABLED is True
+    assert settings.FILE_TYPE_PPT_ENABLED is True

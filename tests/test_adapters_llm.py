@@ -13,9 +13,7 @@ class _FakeOpenAI:
 
 
 def test_make_llm_client_returns_none_when_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(settings, "LLM_BASE_URL", None)
     monkeypatch.setattr(settings, "LLM_API_KEY", None)
-    monkeypatch.setattr(settings, "LLM_MODEL", None)
 
     client = llm_adapter.make_llm_client()
 
@@ -23,13 +21,11 @@ def test_make_llm_client_returns_none_when_disabled(monkeypatch: pytest.MonkeyPa
 
 
 def test_make_llm_client_returns_client_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(settings, "LLM_BASE_URL", "http://llm.local")
     monkeypatch.setattr(settings, "LLM_API_KEY", "key")
-    monkeypatch.setattr(settings, "LLM_MODEL", "model")
     monkeypatch.setattr(llm_adapter, "OpenAI", _FakeOpenAI)
 
     client = llm_adapter.make_llm_client()
 
     assert isinstance(client, _FakeOpenAI)
-    assert client.base_url == "http://llm.local"
+    assert client.base_url == "https://api.openai.com/v1"
     assert client.api_key == "key"
