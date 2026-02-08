@@ -113,10 +113,8 @@ flowchart LR
    - Enable Google Drive API, Google Docs API, Google Sheets API, and Google Slides API
 3. Set required environment variables:
    - `TELEGRAM_BOT_TOKEN`
-   - `STORAGE_BACKEND=google_drive`
    - Either `STORAGE_GOOGLE_DRIVE_FOLDER_IDS` (JSON array) or `STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE=true`
 4. Start services: `make start`
-5. Stop everything: `make stop`
 
 ### Google APIs and scopes
 
@@ -127,7 +125,7 @@ The bot uses these APIs during ingestion:
 - Google Sheets API: extract Google Sheets tables
 - Google Slides API: extract Google Slides text
 
-Service-account scopes requested by the app:
+Service account scopes used by the app:
 
 - `https://www.googleapis.com/auth/drive.readonly`
 - `https://www.googleapis.com/auth/documents.readonly`
@@ -226,5 +224,5 @@ All settings are defined via `.env`.
 Set either `STORAGE_GOOGLE_DRIVE_FOLDER_IDS` (JSON array) or
 `STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE=true` when using the Google Drive provider.
 
-The service account file must exist at the configured `STORAGE_GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`
-path.
+The service account JSON key must exist at the configured
+`STORAGE_GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` path.
