@@ -17,7 +17,7 @@ check_deps_updates:
 	uv tree --outdated --depth=1 | grep latest
 
 check_deps_vuln:
-	.venv/bin/pysentry-rs --sources pypa,pypi,osv --fail-on low .
+	uv run pysentry-rs .
 
 start: ensure_env
 	docker compose $(COMPOSE_FILES) \
@@ -30,17 +30,17 @@ stop: ensure_env
 restart: stop start
 
 lint:
-	.venv/bin/ruff format
-	.venv/bin/ruff check --fix
+	uv run ruff format
+	uv run ruff check --fix
 
 test:
-	.venv/bin/pytest
+	uv run pytest
 
 check_types:
-	.venv/bin/ty check .
+	uv run ty check .
 
 check:
-	.venv/bin/prek --all-files --hook-stage pre-commit
+	uv run prek --all-files --hook-stage pre-commit
 
 logs_bot:
 	docker compose $(COMPOSE_FILES) logs -f bot

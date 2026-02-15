@@ -7,3 +7,9 @@ insert_final_newline = true
 charset = utf-8
 indent_style = space
 indent_size = 4
+
+[Makefile]
+indent_style = tab
+
+[{*.y*ml,*.json,*.toml,*.xml}]
+indent_size = 2
