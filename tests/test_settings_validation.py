@@ -11,7 +11,7 @@ def _valid_settings(**kwargs: Any) -> Settings:
         and "STORAGE_GOOGLE_DRIVE_FOLDER_IDS" not in kwargs
     ):
         kwargs["STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE"] = True
-    return Settings(TELEGRAM_BOT_TOKEN="example", **kwargs)
+    return Settings(TELEGRAM_BOT_TOKEN="example", **kwargs)  # nosec B106
 
 
 def test_literal_types_validated() -> None:

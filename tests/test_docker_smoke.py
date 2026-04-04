@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
+import subprocess  # nosec B404
 import tempfile
 import time
 from pathlib import Path
@@ -28,7 +28,7 @@ SMOKE_TEST_SECONDS={seconds}
 
 def _docker_available() -> bool:
     try:
-        subprocess.run(
+        subprocess.run(  # nosec B603 B607
             ["docker", "info"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
     except (subprocess.SubprocessError, FileNotFoundError):
@@ -37,7 +37,7 @@ def _docker_available() -> bool:
 
 
 def _run(cmd: list[str], *, cwd: Path, timeout: int = 300) -> None:
-    subprocess.run(cmd, cwd=cwd, check=True, timeout=timeout)
+    subprocess.run(cmd, cwd=cwd, check=True, timeout=timeout)  # nosec B603
 
 
 def _wait_for_health(project: str, service: str, url: str) -> None:

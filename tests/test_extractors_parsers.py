@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import io
-import subprocess
+import subprocess  # nosec B404
 from types import SimpleNamespace
 
 import pytest

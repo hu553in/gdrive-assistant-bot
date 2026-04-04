@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-import subprocess
+import subprocess  # nosec B404
 import tempfile
 from typing import Any
 
@@ -127,7 +127,9 @@ class DocExtractor(FileExtractor):
             tmp_path = tmp.name
 
         try:
-            result = subprocess.run(["catdoc", tmp_path], capture_output=True, check=False)
+            result = subprocess.run(  # nosec B603 B607
+                ["catdoc", tmp_path], capture_output=True, check=False
+            )
         except FileNotFoundError as exc:
             raise RuntimeError("Legacy DOC extraction requires the 'catdoc' binary.") from exc
         finally:

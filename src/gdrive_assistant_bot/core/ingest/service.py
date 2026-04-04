@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
-from typing import Any, Literal, Protocol, cast
+from typing import Any, Literal, Protocol
 
 import structlog
 
@@ -208,9 +208,7 @@ class IngestService:
                 f = next(it)
             except StopIteration:
                 return False
-            fut = cast(
-                Future[IngestStatus], executor.submit(self._ingest_one_file, f, limiter, stop_event)
-            )
+            fut = executor.submit(self._ingest_one_file, f, limiter, stop_event)
             in_flight.add(fut)
             fut_meta[fut] = f
             return True

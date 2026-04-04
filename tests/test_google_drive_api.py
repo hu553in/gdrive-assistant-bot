@@ -46,7 +46,7 @@ def test_execute_with_backoff_retries(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(gapi.settings, "STORAGE_GOOGLE_DRIVE_BACKOFF_RETRIES", 2)
     monkeypatch.setattr(gapi.settings, "STORAGE_GOOGLE_DRIVE_BACKOFF_BASE_DELAY_SECONDS", 0.01)
     monkeypatch.setattr(gapi.settings, "STORAGE_GOOGLE_DRIVE_BACKOFF_MAX_DELAY_SECONDS", 0.02)
-    monkeypatch.setattr(gapi.random, "random", lambda: 0.0)
+    monkeypatch.setattr(gapi.secrets, "randbelow", lambda _: 0)
     monkeypatch.setattr(gapi.time, "sleep", lambda _: None)
 
     assert execute_with_backoff(call, limiter) == "ok"
@@ -80,7 +80,7 @@ def test_execute_with_backoff_exhausts_retries(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr(gapi.settings, "STORAGE_GOOGLE_DRIVE_BACKOFF_RETRIES", 1)
     monkeypatch.setattr(gapi.settings, "STORAGE_GOOGLE_DRIVE_BACKOFF_BASE_DELAY_SECONDS", 0.01)
     monkeypatch.setattr(gapi.settings, "STORAGE_GOOGLE_DRIVE_BACKOFF_MAX_DELAY_SECONDS", 0.02)
-    monkeypatch.setattr(gapi.random, "random", lambda: 0.0)
+    monkeypatch.setattr(gapi.secrets, "randbelow", lambda _: 0)
     monkeypatch.setattr(gapi.time, "sleep", lambda _: None)
 
     with pytest.raises(HttpError):

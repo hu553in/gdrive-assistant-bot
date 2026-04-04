@@ -1,5 +1,6 @@
 import logging
 import sys
+from typing import Any
 
 import structlog
 
@@ -26,8 +27,8 @@ def setup_logging() -> None:
         structlog.processors.StackInfoRenderer(),
     ]
 
-    foreign_pre_chain = [*shared_processors]
-    processors = [structlog.stdlib.filter_by_level, *shared_processors]
+    foreign_pre_chain: list[Any] = [*shared_processors]
+    processors: list[Any] = [structlog.stdlib.filter_by_level, *shared_processors]
 
     if settings.LOG_PLAIN_TEXT:
         renderer = structlog.dev.ConsoleRenderer(timestamp_key="timestamp")

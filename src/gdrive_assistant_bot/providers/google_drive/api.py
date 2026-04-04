@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import io
-import random
+import secrets
 import time
 from collections.abc import Callable
 from typing import Any
@@ -43,7 +43,8 @@ def execute_with_backoff[T](call: Callable[[], T], limiter: Limiter) -> T:
                 settings.STORAGE_GOOGLE_DRIVE_BACKOFF_MAX_DELAY_SECONDS,
                 settings.STORAGE_GOOGLE_DRIVE_BACKOFF_BASE_DELAY_SECONDS * (2 ** (attempt - 1)),
             )
-            delay *= 0.7 + random.random() * 0.6
+            jitter = 0.7 + (secrets.randbelow(6001) / 10000)
+            delay *= jitter
             log.warning(
                 "google_api_retry",
                 component="ingest",

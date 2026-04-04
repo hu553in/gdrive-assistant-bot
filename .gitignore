@@ -1,7 +1,6 @@
-.venv
+.venv/
 .env
 secrets/
-.ruff_cache/
 __pycache__/
 .coverage
 .coverage.*

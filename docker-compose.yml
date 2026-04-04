@@ -1,26 +1,36 @@
 x-common: &common
   restart: unless-stopped
   logging:
-    driver: "json-file"
+    driver: json-file
     options:
-      max-size: "10m"
-      max-file: "3"
+      max-size: 50m
+      max-file: 4
+      compress: "true"
+      mode: non-blocking
+      max-buffer-size: 4m
 
 services:
   qdrant:
     <<: *common
-    image: qdrant/qdrant:latest
+    image: qdrant/qdrant
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:
-      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/6333 && echo -e 'GET /readyz HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q 'HTTP/1.1 200' <&3"]
-      interval: 5s
+      test:
+        [
+          "CMD",
+          "bash",
+          "-c",
+          "exec 3<>/dev/tcp/127.0.0.1/6333 && echo -e 'GET /readyz HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q 'HTTP/1.1 200' <&3",
+        ]
+      interval: 10s
       timeout: 3s
-      retries: 30
+      retries: 10
+      start_period: 10s
 
   bot:
     <<: *common
-    image: ghcr.io/hu553in/gdrive-assistant-bot:latest
+    image: ghcr.io/hu553in/gdrive-assistant-bot
     platform: linux/amd64
     env_file:
       - ${ENV_FILE:-.env}
@@ -28,16 +38,23 @@ services:
       qdrant:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://${HEALTH_HOST:-localhost}:${BOT_HEALTH_PORT:-8080}/healthz"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "-qO-",
+          "http://${HEALTH_HOST:-localhost}:${BOT_HEALTH_PORT:-8080}/healthz",
+        ]
       interval: 10s
       timeout: 3s
       retries: 10
       start_period: 10s
-    command: ["uv", "run", "--no-dev", "python", "-m", "gdrive_assistant_bot.bot"]
+    command:
+      ["uv", "run", "--no-dev", "python", "-m", "gdrive_assistant_bot.bot"]
 
   ingest:
     <<: *common
-    image: ghcr.io/hu553in/gdrive-assistant-bot:latest
+    image: ghcr.io/hu553in/gdrive-assistant-bot
     platform: linux/amd64
     env_file:
       - ${ENV_FILE:-.env}
@@ -45,18 +62,25 @@ services:
       qdrant:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://${HEALTH_HOST:-localhost}:${INGEST_HEALTH_PORT:-8081}/healthz"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "-qO-",
+          "http://${HEALTH_HOST:-localhost}:${INGEST_HEALTH_PORT:-8081}/healthz",
+        ]
       interval: 10s
       timeout: 3s
       retries: 10
       start_period: 10s
-    command: ["uv", "run", "--no-dev", "python", "-m", "gdrive_assistant_bot.ingest"]
+    command:
+      ["uv", "run", "--no-dev", "python", "-m", "gdrive_assistant_bot.ingest"]
     secrets:
       - google_sa
-
-volumes:
-  qdrant_data:
 
 secrets:
   google_sa:
     file: ${GOOGLE_SA_FILE:-./secrets/google_sa.json}
+
+volumes:
+  qdrant_data:

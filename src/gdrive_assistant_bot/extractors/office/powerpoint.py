@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 import os
-import subprocess
+import subprocess  # nosec B404
 import tempfile
 from typing import Any
 
@@ -137,7 +137,9 @@ class PptExtractor(FileExtractor):
             tmp_path = tmp.name
 
         try:
-            result = subprocess.run(["catppt", tmp_path], capture_output=True, check=False)
+            result = subprocess.run(  # nosec B603 B607
+                ["catppt", tmp_path], capture_output=True, check=False
+            )
         except FileNotFoundError as exc:
             raise RuntimeError("Legacy PPT extraction requires the 'catppt' binary.") from exc
         finally:

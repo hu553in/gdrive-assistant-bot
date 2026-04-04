@@ -24,19 +24,6 @@ check_deps_updates:
 check_deps_vuln:
 	uv run pysentry-rs .
 
-.PHONY: start
-start: ensure_env
-	docker compose $(COMPOSE_FILES) \
-	up -d --build --wait --remove-orphans
-
-.PHONY: stop
-stop: ensure_env
-	docker compose $(COMPOSE_FILES) \
-	down --remove-orphans
-
-.PHONY: restart
-restart: stop start
-
 .PHONY: lint
 lint:
 	uv run ruff format
@@ -54,10 +41,17 @@ check_types:
 check:
 	uv run prek --all-files --hook-stage pre-commit
 
-.PHONY: logs_bot
-logs_bot:
-	docker compose $(COMPOSE_FILES) logs -f bot
+# Project-specific
 
-.PHONY: logs_ingest
-logs_ingest:
-	docker compose $(COMPOSE_FILES) logs -f ingest
+.PHONY: start
+start: ensure_env
+	docker compose $(COMPOSE_FILES) \
+	up -d --build --wait --remove-orphans
+
+.PHONY: stop
+stop: ensure_env
+	docker compose $(COMPOSE_FILES) \
+	down --remove-orphans
+
+.PHONY: restart
+restart: stop start

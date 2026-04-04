@@ -7,33 +7,33 @@ readme = "README.md"
 
 dependencies = [
   "fastembed>=0.7.4",
-  "google-api-python-client>=2.190.0",
-  "google-auth-httplib2>=0.3.0",
-  "google-auth>=2.48.0",
-  "openai>=2.21.0",
+  "google-api-python-client>=2.193.0",
+  "google-auth-httplib2>=0.3.1",
+  "google-auth>=2.49.1",
+  "openai>=2.30.0",
   "openpyxl>=3.1.5",
   "pdfplumber>=0.11.9",
-  "pydantic-settings>=2.13.0",
+  "pydantic-settings>=2.13.1",
   "pydantic>=2.12.5",
   "pypdf>=6.7.0",
   "python-docx>=1.2.0",
   "python-pptx>=1.0.2",
-  "python-telegram-bot>=22.6",
-  "qdrant-client>=1.16.2",
+  "python-telegram-bot>=22.7",
+  "qdrant-client>=1.17.1",
   "structlog>=25.5.0",
   "xlrd>=2.0.2",
 ]
 
 [dependency-groups]
 dev = [
-  "prek>=0.3.3",
-  "pysentry-rs>=0.4.1",
-  "pytest-cov>=7.0.0",
+  "prek>=0.3.8",
+  "pysentry-rs>=0.4.3",
+  "pytest-cov>=7.1.0",
   "pytest-xdist>=3.8.0",
   "pytest>=9.0.2",
-  "ruff>=0.15.1",
-  "testcontainers[qdrant]>=4.14.1",
-  "ty>=0.0.17",
+  "ruff>=0.15.9",
+  "testcontainers[qdrant]>=4.14.2",
+  "ty>=0.0.28",
 ]
 
 [tool.uv]
@@ -64,8 +64,10 @@ indent-style = "space"
 skip-magic-trailing-comma = true
 
 [tool.pysentry.defaults]
-sources = "pypa,pypi,osv"
 fail_on = "low"
 
-[tool.pysentry.ignore]
-ids = ["GHSA-cfh3-3jmp-rvhc"]
+[tool.pysentry.sources]
+enabled = ["pypa", "pypi", "osv"]
+
+[tool.bandit.assert_used]
+skips = ["*_test.py", "*test_*.py"]
