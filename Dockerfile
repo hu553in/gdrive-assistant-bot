@@ -14,6 +14,7 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS runner
 WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app/src \
     UV_PROJECT_ENVIRONMENT=/app/.venv
 
@@ -21,9 +22,9 @@ RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt/lists \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        ca-certificates \
-        catdoc \
-        wget
+    ca-certificates \
+    catdoc \
+    wget
 
 RUN useradd -m app
 
