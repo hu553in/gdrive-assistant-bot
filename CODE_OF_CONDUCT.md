@@ -1,4 +1,4 @@
-# Code of Conduct - Google Drive assistant bot
+# Code of Conduct — Google Drive assistant bot
 
 ## Our Pledge
 

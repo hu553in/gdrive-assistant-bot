@@ -1,6 +1,12 @@
-.venv/
+.DS_Store
+Thumbs.db
 .env
+.venv/
+.pytest_cache/
+.ruff_cache/
 secrets/
 __pycache__/
 .coverage
 .coverage.*
+coverage.xml
+htmlcov/

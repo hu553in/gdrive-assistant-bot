@@ -6,35 +6,20 @@
 - [How to contribute](./CONTRIBUTING.md)
 - [Code of conduct](./CODE_OF_CONDUCT.md)
 
-Semantic search and Q&A Telegram bot for Google Drive — powered by Qdrant and an optional OpenAI-compatible LLM.
-
----
-
-## Why this project
-
-If your Google Drive is full of documents and you keep asking questions like:
-
-- "What did I write last January?"
-- "Is there any document mentioning X?"
-- "Does my work Google Drive actually contain anything about this?"
-
-This bot turns Google Drive into a searchable knowledge base — and answers directly in Telegram.
-
----
+Semantic search and Q&A Telegram bot for Google Drive, backed by Qdrant and an optional
+OpenAI-compatible LLM.
 
 ## What it does
 
 - Recursively indexes documents from Google Drive, from:
-   - specific folders, or
-   - everything accessible to the account
+  - specific folders, or
+  - everything accessible to the account
 - Splits content into chunks, generates embeddings, and stores them in Qdrant
 - Answers questions via `/ask` using semantic search
 - Optionally uses an OpenAI-compatible LLM to generate final answers
 - Accepts manual notes from Telegram via `/ingest`
 
 LLM usage is optional. Without it, the bot returns the most relevant text fragments.
-
----
 
 ## Supported file types
 
@@ -45,16 +30,12 @@ LLM usage is optional. Without it, the bot returns the most relevant text fragme
 - PDF documents
 - Microsoft Office formats (DOC, DOCX, XLS, XLSX, PPT, PPTX)
 
----
-
 ## Components
 
 - **ingest** — background service that syncs cloud files to Qdrant
 - **bot** — Telegram interface for asking questions and adding notes
 - **qdrant** — vector database for embeddings and search
 - **llm** (optional) — OpenAI-compatible model for answer generation
-
----
 
 ## Architecture
 
@@ -100,8 +81,6 @@ flowchart LR
     LLM -->|final answer| BOT
 ```
 
----
-
 ## Quick start
 
 1. Copy environment config: `cp .env.example .env`
@@ -132,8 +111,6 @@ Service account scopes used by the app:
 - `https://www.googleapis.com/auth/spreadsheets.readonly`
 - `https://www.googleapis.com/auth/presentations.readonly`
 
----
-
 ## Access control (optional)
 
 By default, the bot is publicly accessible. You can restrict access using the following options:
@@ -153,15 +130,11 @@ Behavior:
 To find your Telegram user or group ID, you can use bots like [@userinfobot](https://userinfobot.t.me)
 or [@getidsbot](https://getidsbot.t.me).
 
----
-
 ## Telegram commands
 
 - `/start` — show help
 - `/ask <question>` — search the knowledge base and answer
 - `/ingest <text>` — manually add a note to the knowledge base
-
----
 
 ## Configuration
 
