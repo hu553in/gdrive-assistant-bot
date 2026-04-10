@@ -3,7 +3,7 @@
 [![CI](https://github.com/hu553in/gdrive-assistant-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/hu553in/gdrive-assistant-bot/actions/workflows/ci.yml)
 
 - [License](./LICENSE)
-- [How to contribute](./CONTRIBUTING.md)
+- [Contributing](./CONTRIBUTING.md)
 - [Code of conduct](./CODE_OF_CONDUCT.md)
 
 Semantic search and Q&A Telegram bot for Google Drive, backed by Qdrant and an optional
