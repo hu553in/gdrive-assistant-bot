@@ -1,7 +1,7 @@
 [project]
 name = "gdrive-assistant-bot"
 version = "0.1.0"
-description = "Google Drive assistant bot"
+description = "Semantic search and Q&A Telegram bot for Google Drive, backed by Qdrant and an optional OpenAI-compatible LLM."
 requires-python = ">=3.13"
 readme = "README.md"
 
