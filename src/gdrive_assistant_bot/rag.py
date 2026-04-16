@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from fastembed import TextEmbedding
 from qdrant_client import QdrantClient
@@ -95,7 +95,7 @@ class RAGStore:
             points.append(
                 qm.PointStruct(
                     id=pid,  # Qdrant requires uint64 or UUID
-                    vector=vec,
+                    vector=cast(qm.VectorStruct, vec),
                     payload={"text": chunk, "source": source, "ts": ts, "chunk": idx, **payload},
                 )
             )
