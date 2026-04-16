@@ -10,12 +10,12 @@ dependencies = [
   "google-api-python-client>=2.193.0",
   "google-auth-httplib2>=0.3.1",
   "google-auth>=2.49.1",
-  "openai>=2.30.0",
+  "openai>=2.32.0",
   "openpyxl>=3.1.5",
   "pdfplumber>=0.11.9",
   "pydantic-settings>=2.13.1",
-  "pydantic>=2.13.0",
-  "pypdf>=6.10.1",
+  "pydantic>=2.13.1",
+  "pypdf>=6.10.2",
   "python-docx>=1.2.0",
   "python-pptx>=1.0.2",
   "python-telegram-bot>=22.7",
@@ -27,13 +27,13 @@ dependencies = [
 [dependency-groups]
 dev = [
   "prek>=0.3.9",
-  "pysentry-rs>=0.4.4",
+  "pysentry-rs>=0.4.5",
   "pytest-cov>=7.1.0",
   "pytest-xdist>=3.8.0",
   "pytest>=9.0.2",
   "ruff>=0.15.9",
   "testcontainers[qdrant]>=4.14.2",
-  "ty>=0.0.28",
+  "ty>=0.0.31",
 ]
 
 [tool.uv]
