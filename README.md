@@ -11,9 +11,7 @@ OpenAI-compatible LLM.
 
 ## What it does
 
-- Recursively indexes documents from Google Drive, from:
-  - specific folders, or
-  - everything accessible to the account
+- Recursively indexes documents from specific Google Drive folders or everything accessible to the account
 - Splits content into chunks, generates embeddings, and stores them in Qdrant
 - Answers questions via `/ask` using semantic search
 - Optionally uses an OpenAI-compatible LLM to generate final answers
@@ -32,10 +30,10 @@ LLM usage is optional. Without it, the bot returns the most relevant text fragme
 
 ## Components
 
-- **ingest** — background service that syncs cloud files to Qdrant
-- **bot** — Telegram interface for asking questions and adding notes
-- **qdrant** — vector database for embeddings and search
-- **llm** (optional) — OpenAI-compatible model for answer generation
+- **ingest** - background service that syncs cloud files to Qdrant
+- **bot** - Telegram interface for asking questions and adding notes
+- **qdrant** - vector database for embeddings and search
+- **llm** (optional) - OpenAI-compatible model for answer generation
 
 ## Architecture
 
@@ -62,7 +60,7 @@ flowchart LR
     RAG -->|upsert vectors| QD
 ```
 
-#### Retrieval & answering
+#### Retrieval and answering
 
 ```mermaid
 flowchart LR
@@ -97,16 +95,27 @@ flowchart LR
 
 ### Google APIs and scopes
 
-Uses Drive, Docs, Sheets, and Slides APIs (readonly scopes). The service account needs the
+Uses Drive, Docs, Sheets, and Slides APIs (read-only scopes). The service account needs the
 corresponding APIs enabled and folders shared with its email.
+
+## Development
+
+Useful commands:
+
+```bash
+make install-deps
+make check
+make start
+make stop
+```
 
 ## Access control (optional)
 
-By default, the bot is publicly accessible. You can restrict access using the following options:
+By default, the bot is publicly accessible. Access control variables:
 
-- Set `TELEGRAM_ALLOWED_USER_IDS` — a JSON array of Telegram user IDs
+- `TELEGRAM_ALLOWED_USER_IDS` - a JSON array of Telegram user IDs
   allowed to interact with the bot in private chats
-- Set `TELEGRAM_ALLOWED_GROUP_IDS` — a JSON array of Telegram group or supergroup IDs
+- `TELEGRAM_ALLOWED_GROUP_IDS` - a JSON array of Telegram group or supergroup IDs
   where the bot is allowed to respond
 
 Behavior:
@@ -116,14 +125,14 @@ Behavior:
 - If group IDs are set, the bot responds only in those groups (any member can use it there)
 - If access is not allowed, the bot silently ignores the message
 
-To find your Telegram user or group ID, you can use bots like [@userinfobot](https://userinfobot.t.me)
+Telegram user and group IDs can be found with bots like [@userinfobot](https://userinfobot.t.me)
 or [@getidsbot](https://getidsbot.t.me).
 
 ## Telegram commands
 
-- `/start` — show help
-- `/ask <question>` — search the knowledge base and answer
-- `/ingest <text>` — manually add a note to the knowledge base
+- `/start` - show help
+- `/ask <question>` - search the knowledge base and answer
+- `/ingest <text>` - manually add a note to the knowledge base
 
 ## Configuration
 
@@ -131,13 +140,13 @@ All settings are defined via `.env`.
 
 | Name                                  | Required    | Default                                                       | Description                |
 | ------------------------------------- | ----------- | ------------------------------------------------------------- | -------------------------- |
-| `TELEGRAM_BOT_TOKEN`                  | yes         | –                                                             | Telegram bot token         |
-| `STORAGE_GOOGLE_DRIVE_FOLDER_IDS`     | conditional | `[]`                                                          | Folder IDs (JSON array)    |
-| `STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE` | conditional | `false`                                                       | Index all accessible files |
-| `QDRANT_URL`                          | no          | `http://qdrant:6333`                                          | Qdrant endpoint            |
-| `LLM_API_KEY`                         | no          | –                                                             | LLM API key (optional)     |
-| `LLM_MODEL`                           | no          | `gpt-4o-mini`                                                 | LLM model name             |
-| `EMBED_MODEL`                         | no          | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | fastembed model            |
+| `TELEGRAM_BOT_TOKEN`                  | Yes         | -                                                             | Telegram bot token         |
+| `STORAGE_GOOGLE_DRIVE_FOLDER_IDS`     | Conditional | `[]`                                                          | Folder IDs (JSON array)    |
+| `STORAGE_GOOGLE_DRIVE_ALL_ACCESSIBLE` | Conditional | `false`                                                       | Index all accessible files |
+| `QDRANT_URL`                          | No          | `http://qdrant:6333`                                          | Qdrant endpoint            |
+| `LLM_API_KEY`                         | No          | -                                                             | LLM API key (optional)     |
+| `LLM_MODEL`                           | No          | `gpt-4o-mini`                                                 | LLM model name             |
+| `EMBED_MODEL`                         | No          | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | fastembed model            |
 
 See `.env.example` for all available options including rate limits, timeouts, file type toggles,
 and health check ports.
