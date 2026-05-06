@@ -4,27 +4,28 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS deps
 WORKDIR /app
 
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv \
-    UV_CACHE_DIR=/root/.cache/uv
+  UV_CACHE_DIR=/root/.cache/uv
 
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
+  uv sync --frozen --no-dev
 
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS runner
 WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/app/src \
-    UV_PROJECT_ENVIRONMENT=/app/.venv
+  PYTHONDONTWRITEBYTECODE=1 \
+  PYTHONPATH=/app/src \
+  UV_PROJECT_ENVIRONMENT=/app/.venv
 
 RUN --mount=type=cache,target=/var/cache/apt \
-    --mount=type=cache,target=/var/lib/apt/lists \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-    ca-certificates \
-    catdoc \
-    wget
+  --mount=type=cache,target=/var/lib/apt/lists \
+  apt-get update && \
+  apt-get install -y --no-install-recommends \
+  ca-certificates \
+  catdoc \
+  wget && \
+  rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m app
 
