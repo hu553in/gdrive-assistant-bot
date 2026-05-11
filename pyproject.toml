@@ -19,7 +19,7 @@ dependencies = [
   "python-docx>=1.2.0",
   "python-pptx>=1.0.2",
   "python-telegram-bot>=22.7",
-  "qdrant-client>=1.17.1",
+  "qdrant-client>=1.18.0",
   "structlog>=25.5.0",
   "xlrd>=2.0.2",
 ]
@@ -38,6 +38,9 @@ dev = [
 
 [tool.uv]
 link-mode = "copy"
+constraint-dependencies = [
+    "urllib3>=2.7.0",
+]
 
 [tool.pytest.ini_options]
 addopts = "-n=logical --cov=src --cov-report=term-missing --cov-fail-under=85"
