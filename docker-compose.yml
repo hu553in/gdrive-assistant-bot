@@ -50,7 +50,7 @@ services:
       retries: 10
       start_period: 10s
     command:
-      ["uv", "run", "--no-dev", "python", "-m", "gdrive_assistant_bot.bot"]
+      ["/app/.venv/bin/python", "-m", "gdrive_assistant_bot.bot"]
 
   ingest:
     <<: *common
@@ -74,7 +74,7 @@ services:
       retries: 10
       start_period: 10s
     command:
-      ["uv", "run", "--no-dev", "python", "-m", "gdrive_assistant_bot.ingest"]
+      ["/app/.venv/bin/python", "-m", "gdrive_assistant_bot.ingest"]
     secrets:
       - google_sa
 

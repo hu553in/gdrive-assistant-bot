@@ -18,7 +18,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_response(404)
         self.end_headers()
 
-    def log_message(self, format: str, *args) -> None:  # noqa: ARG002
+    def log_message(self, format: str, *_args) -> None:  # noqa: ARG002
         # silence stdlib access logs; we do structured logs ourselves
         return
 

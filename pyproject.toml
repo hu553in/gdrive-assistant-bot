@@ -8,7 +8,6 @@ readme = "README.md"
 dependencies = [
   "fastembed>=0.7.4",
   "google-api-python-client>=2.196.0",
-  "google-auth-httplib2>=0.4.0",
   "google-auth>=2.52.0",
   "openai>=2.36.0",
   "openpyxl>=3.1.5",
@@ -26,6 +25,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+  "deptry>=0.25.1",
   "prek>=0.3.13",
   "pysentry-rs>=0.4.5",
   "pytest-cov>=7.1.0",
@@ -71,6 +71,14 @@ fail_on = "low"
 
 [tool.pysentry.sources]
 enabled = ["pypa", "pypi", "osv"]
+
+[tool.deptry]
+known_first_party = ["gdrive_assistant_bot"]
+
+[tool.vulture]
+paths = ["src", "tests"]
+min_confidence = 100
+sort_by_size = true
 
 [tool.bandit.assert_used]
 skips = ["*_test.py", "*test_*.py"]
