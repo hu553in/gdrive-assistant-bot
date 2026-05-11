@@ -13,9 +13,9 @@ dependencies = [
   "openai>=2.36.0",
   "openpyxl>=3.1.5",
   "pdfplumber>=0.11.9",
-  "pydantic-settings>=2.14.0",
+  "pydantic-settings>=2.14.1",
   "pydantic>=2.13.4",
-  "pypdf>=6.10.2",
+  "pypdf>=6.11.0",
   "python-docx>=1.2.0",
   "python-pptx>=1.0.2",
   "python-telegram-bot>=22.7",
@@ -33,7 +33,7 @@ dev = [
   "pytest>=9.0.2",
   "ruff>=0.15.12",
   "testcontainers[qdrant]>=4.14.2",
-  "ty>=0.0.34",
+  "ty>=0.0.35",
 ]
 
 [tool.uv]
