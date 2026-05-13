@@ -25,8 +25,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
   apt-get install -y --no-install-recommends \
   ca-certificates \
   catdoc \
-  wget && \
-  rm -rf /var/lib/apt/lists/*
+  wget
 
 RUN useradd -m app
 
