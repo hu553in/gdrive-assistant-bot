@@ -1,0 +1,81 @@
+[project]
+name = "gdrive-assistant-bot"
+version = "0.1.0"
+description = "Semantic search and Q&A Telegram bot for Google Drive, backed by Qdrant and an optional OpenAI-compatible LLM."
+requires-python = ">=3.13"
+readme = "README.md"
+
+dependencies = [
+  "fastembed>=0.7.4",
+  "google-api-python-client>=2.197.0",
+  "google-auth>=2.54.0",
+  "openai>=2.41.1",
+  "openpyxl>=3.1.5",
+  "pdfplumber>=0.11.9",
+  "pydantic-settings>=2.14.1",
+  "pydantic>=2.13.4",
+  "pypdf>=6.13.2",
+  "python-docx>=1.2.0",
+  "python-pptx>=1.0.2",
+  "python-telegram-bot>=22.8",
+  "qdrant-client>=1.18.0",
+  "structlog>=26.1.0",
+  "xlrd>=2.0.2",
+]
+
+[dependency-groups]
+dev = [
+  "deptry>=0.25.1",
+  "prek>=0.4.4",
+  "pysentry-rs>=0.4.6",
+  "pytest-cov>=7.1.0",
+  "pytest-xdist>=3.8.0",
+  "pytest>=9.1.0",
+  "ruff>=0.15.17",
+  "testcontainers[qdrant]>=4.14.2",
+  "ty>=0.0.49",
+]
+
+[tool.uv]
+link-mode = "copy"
+
+[tool.pytest.ini_options]
+addopts = "-n=logical --cov=src --cov-report=term-missing --cov-fail-under=85"
+markers = [
+  "integration: requires Docker/Testcontainers and is skipped if unavailable",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ARG", "PL", "RUF"]
+extend-ignore = ["RUF001"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["gdrive_assistant_bot"]
+split-on-trailing-comma = false
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = true
+
+[tool.pysentry.defaults]
+fail_on = "low"
+
+[tool.pysentry.sources]
+enabled = ["pypa", "pypi", "osv"]
+
+[tool.deptry]
+known_first_party = ["gdrive_assistant_bot"]
+
+[tool.vulture]
+paths = ["src", "tests"]
+min_confidence = 100
+sort_by_size = true
+
+[tool.bandit.assert_used]
+skips = ["*_test.py", "*test_*.py"]
