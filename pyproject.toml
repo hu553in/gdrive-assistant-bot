@@ -37,9 +37,12 @@ dev = [
 ]
 
 [tool.uv]
+default-groups = ["dev"]
 link-mode = "copy"
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
 addopts = "-n=logical --cov=src --cov-report=term-missing --cov-fail-under=85"
 markers = [
   "integration: requires Docker/Testcontainers and is skipped if unavailable",
