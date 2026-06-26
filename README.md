@@ -33,6 +33,9 @@ mkdir -p secrets
 Place the Google service account key at `secrets/google_sa.json`, then share the target Drive
 folders with the service account email. Edit `.env` before starting the services.
 
+Docker Compose reads `.env` by default. Set `ENV_FILE` for another env file or `GOOGLE_SA_FILE` for
+another service account key path.
+
 ## Configuration
 
 All settings are read from `.env`.
